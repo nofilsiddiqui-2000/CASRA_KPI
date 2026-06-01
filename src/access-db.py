@@ -1,6 +1,7 @@
 from pathlib import Path
-from datetime import date, timedelta
 import pandas as pd
+
+from casra_dates import parse_date_range
 
 
 ROOT_DIR = Path(r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION") # path to the directory containing all the scripts and folders. This should be changed to match the user's environment.
@@ -17,24 +18,13 @@ ZMNM_DIR = SAP_DIR / "ZMNM"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def get_previous_month_dates():
-    first_day_current_month = date.today().replace(day=1)
-    last_day_previous_month = first_day_current_month - timedelta(days=1)
-    first_day_previous_month = last_day_previous_month.replace(day=1)
-
-    date_from = first_day_previous_month.strftime("%Y%m%d")
-    date_to = last_day_previous_month.strftime("%Y%m%d")
-
-    return date_from, date_to
-
-
 def validate_file(path: Path, label: str):
     if not path.exists():
         raise FileNotFoundError(f"{label} file not found: {path}")
     return path
 
 
-date_from, date_to = get_previous_month_dates()
+date_from, date_to = parse_date_range("access-db")
 
 ZMMR_FILE = validate_file(
     ZMMR_DIR / f"ZMMR2199M_{date_from}.xlsx",

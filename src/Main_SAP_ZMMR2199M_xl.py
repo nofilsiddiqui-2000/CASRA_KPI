@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 import os, time
 import win32com.client
 
+from casra_dates import parse_date_range
+
 # from Utilities import SharePointAPI
 # from Utilities import AzureAPI
 
@@ -21,19 +23,6 @@ def read_config():
                 continue
             config_data[key.strip()] = value.strip().strip('"').strip("'")
     return config_data
-
-
-# def get_previous_month_dates():
-#     today = datetime.today()
-#     first_day_current_month = today.replace(day=1)
-#     last_day_previous_month = first_day_current_month - timedelta(days=1)
-#     first_day_previous_month = last_day_previous_month.replace(day=1)
-#     return first_day_previous_month.strftime("%Y%m%d"), last_day_previous_month.strftime("%Y%m%d")
-
-
-
-def get_previous_month_dates():
-    return "20260330", "20260503"      # runs from Mar 30 to May 3 for testing purposes. Change back to dynamic dates when done.
 
 
 def parse_zmmr2199m_txt(txt_path):
@@ -152,7 +141,7 @@ if automation_status == "On":
         export_path = r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\SAP_Extracts\ZMMR2199M"   
         os.makedirs(export_path, exist_ok=True)
 
-        date_from, date_to = get_previous_month_dates()
+        date_from, date_to = parse_date_range("Main_SAP_ZMMR2199M_xl")
 
         txt_file_name = f"ZMMR2199M_{date_from}.txt"
         xlsx_file_name = f"ZMMR2199M_{date_from}.xlsx"

@@ -1,14 +1,18 @@
 from pathlib import Path
 import pandas as pd
 
+from casra_dates import parse_date_range
+
 
 ROOT_DIR = Path(r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION")
 OUTPUT_DIR = ROOT_DIR / "CASRA_KPI_OUTPUT"
+DATAQUALITY_DIR = ROOT_DIR / "Check_SNP"  # downloaded manually each month, see Data_Quality_*.xlsx
 
-ACCESS_OUTPUT_FILE = Path(r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\Check_SNP\CASRA_KPI_OUTPUT_MANUAL_20260529.xlsx")
-DATAQUALITY_FILE = Path(r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\Check_SNP\Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx")
+date_from, _ = parse_date_range("apply_snp_exceptions")
 
-FINAL_OUTPUT_FILE = OUTPUT_DIR / "CASRA_KPI_OUTPUT_SNP_EXCEPTIONS.xlsx"
+ACCESS_OUTPUT_FILE = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
+DATAQUALITY_FILE = DATAQUALITY_DIR / "Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx"
+FINAL_OUTPUT_FILE = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
 
 
 CHECK_COLUMNS = [
