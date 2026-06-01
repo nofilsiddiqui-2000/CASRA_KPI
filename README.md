@@ -81,6 +81,17 @@ After a successful run, two files appear in `CASRA_KPI_OUTPUT/`:
 
 `<date_from>` is the start date you ran with, e.g. `CASRA_KPI_OUTPUT_20260501_FINAL.xlsx`.
 
+### Run Summary (parts created + error counts)
+
+Both Excel files contain a **`Run Summary`** sheet at the top. The final file's summary has everything in one row:
+
+| Date From | Date To | Parts Created (ZMMR rows) | Rows in Output | Rows with Errors (pre-SNP) | Check_SNP errors before | Check_SNP exceptions applied | Check_SNP errors after | Rows with Errors (post-SNP) |
+|---|---|---|---|---|---|---|---|---|
+
+`Parts Created (ZMMR rows)` is the count of populated rows in the **Material Number** column of the ZMMR2199M extract — that's the "**X parts were created**" number for the KPI.
+
+The same numbers are also printed to the console at the end of the run.
+
 ---
 
 ## Folder layout (on the machine that runs this)

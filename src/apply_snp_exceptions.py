@@ -46,6 +46,16 @@ def read_excel(path: Path) -> pd.DataFrame:
     return df
 
 
+def read_run_summary(path: Path) -> pd.DataFrame:
+    # access-db.py writes a "Run Summary" sheet alongside the data. If we're
+    # running against an older intermediate file that doesn't have it, fall
+    # back to an empty frame (we'll still record the SNP-side stats).
+    try:
+        return pd.read_excel(path, sheet_name="Run Summary", dtype=object)
+    except (ValueError, KeyError):
+        return pd.DataFrame()
+
+
 def clean_part(value) -> str:
     if pd.isna(value):
         return ""
@@ -165,15 +175,31 @@ def main() -> None:
 
     access_df = read_excel(access_output_file)
     dq_df = read_excel(dataquality_file)
+    run_summary = read_run_summary(access_output_file)
 
     final_df, snp_audit, matched_dq_rows, remaining_snp_errors, dq_keys_df = apply_snp_exceptions(access_df, dq_df)
 
     before_snp_errors = int(pd.to_numeric(access_df["Check_SNP"], errors="coerce").fillna(0).astype(int).sum())
     after_snp_errors = int(final_df["Check_SNP"].sum())
     exceptions_applied = before_snp_errors - after_snp_errors
+    rows_with_errors_post = int((final_df["Errors"] > 0).sum())
+
+    snp_summary_cols = {
+        "Check_SNP errors before": before_snp_errors,
+        "Check_SNP exceptions applied": exceptions_applied,
+        "Check_SNP errors after": after_snp_errors,
+        "Rows with Errors (post-SNP)": rows_with_errors_post,
+    }
+
+    if run_summary.empty:
+        run_summary = pd.DataFrame([snp_summary_cols])
+    else:
+        for col, val in snp_summary_cols.items():
+            run_summary[col] = val
 
     with pd.ExcelWriter(FINAL_OUTPUT_FILE, engine="openpyxl") as writer:
         final_df.to_excel(writer, sheet_name="Final Output", index=False)
+        run_summary.to_excel(writer, sheet_name="Run Summary", index=False)
         snp_audit.to_excel(writer, sheet_name="SNP Audit", index=False)
         matched_dq_rows.to_excel(writer, sheet_name="Matched DQ Rows", index=False)
         remaining_snp_errors.to_excel(writer, sheet_name="Remaining SNP Errors", index=False)
@@ -181,10 +207,12 @@ def main() -> None:
 
     print(f"Input file: {access_output_file}")
     print(f"Data Quality file: {dataquality_file}")
-    print(f"Check_SNP errors before exceptions: {before_snp_errors}")
-    print(f"Check_SNP exceptions applied: {exceptions_applied}")
-    print(f"Check_SNP errors after exceptions: {after_snp_errors}")
-    print(f"Output created: {FINAL_OUTPUT_FILE}")
+    print()
+    print("Run Summary:")
+    if not run_summary.empty:
+        for col in run_summary.columns:
+            print(f"  {col}: {run_summary.iloc[0][col]}")
+    print(f"\nOutput created: {FINAL_OUTPUT_FILE}")
 
 
 if __name__ == "__main__":

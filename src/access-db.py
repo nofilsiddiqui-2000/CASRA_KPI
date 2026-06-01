@@ -399,15 +399,40 @@ def run_pipeline(ctx: dict) -> None:
     q47_calculate_errors(ctx)
 
 
+def count_parts_created(ctx: dict) -> int:
+    # Raw row count of populated Material Number cells in the ZMMR extract.
+    # User-facing KPI: "X parts were created". Duplicates are kept on purpose
+    # (one part may appear multiple times, once per check field in ZMMR).
+    week1_raw = ctx["week1_raw"]
+    material_col = find_col(week1_raw, ["Material Number"])
+    return int(week1_raw[material_col].notna().sum())
+
+
 def main() -> None:
     ctx = load_context()
+
+    parts_created = count_parts_created(ctx)
+
     run_pipeline(ctx)
 
     final_output = prepare_final_output(ctx)
-    final_output.to_excel(OUTPUT_FILE, index=False)
+    rows_with_errors = int((final_output["Errors"] > 0).sum())
 
+    run_summary = pd.DataFrame([{
+        "Date From": date_from,
+        "Date To": date_to,
+        "Parts Created (ZMMR rows)": parts_created,
+        "Rows in Output": len(final_output),
+        "Rows with Errors (pre-SNP)": rows_with_errors,
+    }])
+
+    with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
+        final_output.to_excel(writer, sheet_name="Final Output", index=False)
+        run_summary.to_excel(writer, sheet_name="Run Summary", index=False)
+
+    print(f"Parts created (ZMMR rows): {parts_created}")
     print(f"Rows exported: {len(final_output)}")
-    print(f"Rows with errors: {(final_output['Errors'] > 0).sum()}")
+    print(f"Rows with errors: {rows_with_errors}")
     print(f"Output created: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
