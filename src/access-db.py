@@ -2,20 +2,18 @@ from pathlib import Path
 import pandas as pd
 
 from casra_dates import parse_date_range
+from casra_paths import (
+    LOOKUP_DIR,
+    SAP_DIR,
+    ensure_output_dirs,
+    intermediate_output,
+)
 
-
-ROOT_DIR = Path(r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION") # path to the directory containing all the scripts and folders. This should be changed to match the user's environment.
-# ROOT_DIR = Path(__file__).parent
-
-
-SAP_DIR = ROOT_DIR / "SAP_Extracts"
-LOOKUP_DIR = ROOT_DIR / "LookUp Tables"
-OUTPUT_DIR = ROOT_DIR / "CASRA_KPI_OUTPUT"
 
 ZMMR_DIR = SAP_DIR / "ZMMR2199M"
 ZMNM_DIR = SAP_DIR / "ZMNM"
 
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ensure_output_dirs()
 
 
 def validate_file(path: Path, label: str):
@@ -40,7 +38,7 @@ RULE_SLOC_FILE = validate_file(LOOKUP_DIR / "RuleSloc.xlsx", "RuleSloc")
 QMAT_MISSING_FILE = validate_file(LOOKUP_DIR / "QMatMissing.xlsx", "QMatMissing")
 QMAT_RULES_FILE = validate_file(LOOKUP_DIR / "QMATRules.xlsx", "QMATRules")
 
-OUTPUT_FILE = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
+OUTPUT_FILE = intermediate_output(date_from)
 
 
 

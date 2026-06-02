@@ -1,15 +1,15 @@
 """Build the CASRA KPI metrics summary used for the Power BI dashboard.
 
 Inputs (all read from the FINAL Excel produced by apply_snp_exceptions.py):
-    CASRA_KPI_OUTPUT/CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx
+    CASRA_KPI_OUTPUT/SNP_Final/CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx
         - Final Output sheet: per-row check columns (summed for error counts).
         - Run Summary sheet:  Parts Created (ZMMR rows) used as the divisor.
 
 Outputs:
-    CASRA_KPI_OUTPUT/CASRA_KPI_METRICS_<date_from>.xlsx   (single row, per-run)
-    CASRA_KPI_OUTPUT/CASRA_KPI_METRICS_MASTER.xlsx        (accumulating master;
-                                                           every run appends a
-                                                           new row, full history)
+    CASRA_KPI_OUTPUT/KPI_Metrics/CASRA_KPI_METRICS_<date_from>.xlsx  (per-run)
+    CASRA_KPI_OUTPUT/KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx        (accumulating
+                                                                      master; every
+                                                                      run appends)
 
 All percentage columns are stored as decimal values. Power BI is expected
 to format them as percentages.
@@ -27,10 +27,12 @@ from pathlib import Path
 import pandas as pd
 
 from casra_dates import parse_date_range
-
-
-ROOT_DIR = Path(r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION")
-OUTPUT_DIR = ROOT_DIR / "CASRA_KPI_OUTPUT"
+from casra_paths import (
+    ensure_output_dirs,
+    kpi_master_output,
+    kpi_metrics_output,
+    snp_final_output,
+)
 
 PARTS_CREATED_COL = "Parts Created (ZMMR rows)"
 
@@ -189,12 +191,12 @@ def print_metrics(metrics: dict) -> None:
 def main() -> None:
     date_from, date_to = parse_date_range("generate_kpi_metrics")
 
-    final_xlsx = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
-    per_run_metrics = OUTPUT_DIR / f"CASRA_KPI_METRICS_{date_from}.xlsx"
-    master_metrics = OUTPUT_DIR / "CASRA_KPI_METRICS_MASTER.xlsx"
+    final_xlsx = snp_final_output(date_from)
+    per_run_metrics = kpi_metrics_output(date_from)
+    master_metrics = kpi_master_output()
 
     validate_file(final_xlsx, "FINAL output")
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_output_dirs()
 
     final_df = pd.read_excel(final_xlsx, sheet_name="Final Output")
     parts_created = get_parts_created(final_xlsx)

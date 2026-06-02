@@ -4,7 +4,7 @@ Use this when you've modified an SNP-exceptions output file (corrections,
 what-if testing, etc.) and want to regenerate the KPI metrics summary
 from that specific file. This script is NOT part of the automated
 Run_KPI.py pipeline. It runs in isolation and does NOT update the
-master metrics file (CASRA_KPI_METRICS_MASTER.xlsx).
+master metrics file (KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx).
 
 Usage:
     python kpi-metrics-manual.py
@@ -24,9 +24,9 @@ from pathlib import Path
 import pandas as pd
 
 # Reuse the exact calculation logic from the automated metrics script.
+from casra_paths import ensure_output_dirs, kpi_metrics_manual_output
 from generate_kpi_metrics import (
     METRIC_COLUMNS,
-    OUTPUT_DIR,
     compute_metrics,
     get_parts_created,
     print_metrics,
@@ -105,7 +105,7 @@ def main() -> None:
     input_file = cli_path if cli_path is not None else prompt_for_path()
 
     validate_file(input_file, "SNP-exceptions input")
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_output_dirs()
 
     final_df = pd.read_excel(input_file, sheet_name="Final Output")
     parts_created = get_parts_created(input_file)
@@ -114,7 +114,7 @@ def main() -> None:
     metrics = compute_metrics(final_df, parts_created, date_from, date_to)
 
     today = date.today().strftime("%Y%m%d")
-    output_file = OUTPUT_DIR / f"CASRA_KPI_METRICS_MANUAL_{today}.xlsx"
+    output_file = kpi_metrics_manual_output(today)
 
     pd.DataFrame([metrics], columns=METRIC_COLUMNS).to_excel(
         output_file, index=False, sheet_name="Metrics"
@@ -125,7 +125,7 @@ def main() -> None:
 
     print(f"\nInput file:           {input_file}")
     print(f"Output metrics file:  {output_file}")
-    print("Note: master metrics file (CASRA_KPI_METRICS_MASTER.xlsx) was NOT updated for this manual run.")
+    print("Note: KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx was NOT updated for this manual run.")
 
 
 if __name__ == "__main__":

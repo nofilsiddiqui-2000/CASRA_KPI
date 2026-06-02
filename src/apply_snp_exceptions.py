@@ -2,19 +2,20 @@ from pathlib import Path
 import pandas as pd
 
 from casra_dates import parse_date_range
-
-
-ROOT_DIR = Path(r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION")
-OUTPUT_DIR = ROOT_DIR / "CASRA_KPI_OUTPUT"
-LOOKUP_DIR = ROOT_DIR / "LookUp Tables"
+from casra_paths import (
+    LOOKUP_DIR,
+    ensure_output_dirs,
+    intermediate_output,
+    snp_final_output,
+)
 
 date_from, _ = parse_date_range("apply_snp_exceptions")
 
-ACCESS_OUTPUT_FILE = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
+ACCESS_OUTPUT_FILE = intermediate_output(date_from)
 # Data Quality file is downloaded manually each month and dropped into LookUp Tables.
 # Update this filename if the downloaded file is named differently for a given run.
 DATAQUALITY_FILE = LOOKUP_DIR / "Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx"
-FINAL_OUTPUT_FILE = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
+FINAL_OUTPUT_FILE = snp_final_output(date_from)
 
 
 CHECK_COLUMNS = [
@@ -173,7 +174,7 @@ def main() -> None:
     access_output_file = validate_file(ACCESS_OUTPUT_FILE, "Access output")
     dataquality_file = validate_file(DATAQUALITY_FILE, "Data Quality file")
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_output_dirs()
 
     access_df = read_excel(access_output_file)
     dq_df = read_excel(dataquality_file)

@@ -50,6 +50,7 @@ It will then run, in order:
 - `Main_SAP_ZMMR2199M_xl.py`
 - `access-db.py`
 - `apply_snp_exceptions.py`
+- `generate_kpi_metrics.py`
 
 ### Option 2 — Manual (custom date range)
 
@@ -72,16 +73,17 @@ If you mistype a date, the script will say so and ask again.
 
 ## What you get
 
-After a successful run, the following files appear in `CASRA_KPI_OUTPUT/`:
+After a successful run, outputs are written under `CASRA_KPI_OUTPUT/` in separate subfolders (one folder per stage):
 
-| File | Description |
-|------|-------------|
-| `CASRA_KPI_OUTPUT_<date_from>.xlsx`        | Intermediate KPI output (before SNP exceptions). |
-| `CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx`  | **Final** detail output used for reporting/visuals. Includes audit sheets for the SNP exceptions that were applied. |
-| `CASRA_KPI_METRICS_<date_from>.xlsx`       | **Per-run KPI metrics** summary (one row, the metrics for this run). |
-| `CASRA_KPI_METRICS_MASTER.xlsx`            | **Master KPI metrics** file. **Every run appends a new row** so you keep the full history. This is the file Power BI connects to. |
+| Folder | File | Description |
+|--------|------|-------------|
+| `Intermediate/` | `CASRA_KPI_OUTPUT_<date_from>.xlsx` | KPI output **before** SNP exceptions. |
+| `SNP_Final/` | `CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx` | **Final** detail output for reporting/visuals. Includes SNP audit sheets. |
+| `KPI_Metrics/` | `CASRA_KPI_METRICS_<date_from>.xlsx` | **Per-run** dashboard metrics (one row). |
+| `KPI_Master/` | `CASRA_KPI_METRICS_MASTER.xlsx` | **Master** metrics file. **Every run appends a new row** — connect Power BI here. |
+| `KPI_Metrics_Manual/` | `CASRA_KPI_METRICS_MANUAL_<today>.xlsx` | Only when you run `kpi-metrics-manual.py` (on-demand). |
 
-`<date_from>` is the start date you ran with, e.g. `CASRA_KPI_OUTPUT_20260501_FINAL.xlsx`.
+`<date_from>` is the start date you ran with, e.g. `SNP_Final/CASRA_KPI_OUTPUT_20260501_FINAL.xlsx`.
 
 ### Run Summary (parts created + error counts)
 
@@ -96,7 +98,7 @@ The same numbers are also printed to the console at the end of the run.
 
 ### KPI metrics file (Power BI source)
 
-The dashboard metrics live in `CASRA_KPI_METRICS_MASTER.xlsx`. **Every run appends a new row** — full history is kept, including multiple runs on the same day. Each row carries `Report Date` (the date the script ran) plus `Date From` / `Date To` (the KPI period that run was computed for). Columns:
+The dashboard metrics live in `KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx`. **Every run appends a new row** — full history is kept, including multiple runs on the same day. Each row carries `Report Date` (the date the script ran) plus `Date From` / `Date To` (the KPI period that run was computed for). Columns:
 
 | Report Date | Date From | Date To | Parts Created | Storage Location | QM Insp Type | Valuation Type | Batch MNGMT | Serialized Profile | Class MOA | Unit of Measure | Hazmat | MRP Area | Total % |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -104,7 +106,7 @@ The dashboard metrics live in `CASRA_KPI_METRICS_MASTER.xlsx`. **Every run appen
 All percentage columns are stored as **decimal values** (e.g. `0.0167` for 1.67%). Power BI is expected to format them as percentages.
 
 Notes:
-- All error counts come from the SNP-corrected output (`CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx`).
+- All error counts come from the SNP-corrected output (`SNP_Final/CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx`).
 - `Parts Created` is the ZMMR2199M Material Number row count.
 - `Hazmat` is currently a placeholder set to `1 / Parts Created` until the business logic is defined; the column exists today so the Power BI model doesn't have to change later.
 - `Check_Class_Status` is calculated upstream but intentionally excluded from this metrics summary.
@@ -125,8 +127,11 @@ CASRA-KPI-AUTOMATION/
 │   └── Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx   (download manually each month;
 │                                                    update the filename in apply_snp_exceptions.py if it changes)
 └── CASRA_KPI_OUTPUT/
-    ├── CASRA_KPI_OUTPUT_<date_from>.xlsx
-    └── CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx
+    ├── Intermediate/          CASRA_KPI_OUTPUT_<date_from>.xlsx
+    ├── SNP_Final/            CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx
+    ├── KPI_Metrics/          CASRA_KPI_METRICS_<date_from>.xlsx
+    ├── KPI_Master/           CASRA_KPI_METRICS_MASTER.xlsx
+    └── KPI_Metrics_Manual/   CASRA_KPI_METRICS_MANUAL_<today>.xlsx  (manual script only)
 ```
 
 A `config.txt` lives next to the scripts in `src/` and holds the SAP credentials:
@@ -152,7 +157,7 @@ If you omit the arguments, the step defaults to the previous calendar month.
 
 ## On-demand metrics from a custom input file
 
-If you've **manually modified** an SNP-exceptions output file (corrections, what-if testing, etc.) and want to regenerate just the KPI metrics from that specific file, use `kpi-metrics-manual.py`. It runs in isolation, **does not** trigger the rest of the pipeline, and **does not** update `CASRA_KPI_METRICS_MASTER.xlsx`.
+If you've **manually modified** an SNP-exceptions output file (corrections, what-if testing, etc.) and want to regenerate just the KPI metrics from that specific file, use `kpi-metrics-manual.py`. It runs in isolation, **does not** trigger the rest of the pipeline, and **does not** update `KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx`.
 
 Two ways to run it:
 
@@ -176,7 +181,7 @@ Input file path:
 **Direct path (no prompt):**
 
 ```powershell
-python kpi-metrics-manual.py --input "C:\path\to\CASRA_KPI_OUTPUT_20260501_FINAL.xlsx"
+python kpi-metrics-manual.py --input "C:\path\to\CASRA_KPI_OUTPUT\SNP_Final\CASRA_KPI_OUTPUT_20260501_FINAL.xlsx"
 ```
 
-Output: a single-row file `CASRA_KPI_OUTPUT/CASRA_KPI_METRICS_MANUAL_<today>.xlsx` containing the same KPI columns as the automated metrics file.
+Output: a single-row file `CASRA_KPI_OUTPUT/KPI_Metrics_Manual/CASRA_KPI_METRICS_MANUAL_<today>.xlsx` containing the same KPI columns as the automated metrics file.
