@@ -26,6 +26,7 @@ SCRIPTS = [
     "Main_SAP_ZMMR2199M_xl.py",
     "access-db.py",
     "apply_snp_exceptions.py",
+    "generate_kpi_metrics.py",
 ]
 
 
@@ -102,7 +103,7 @@ def main() -> None:
     for script in SCRIPTS:
         run_script(script, date_from, date_to)
 
-    print("\nDone. SAP exports, KPI output, and SNP exceptions completed successfully.")
+    print("\nDone. SAP exports, KPI output, SNP exceptions, and KPI metrics completed successfully.")
     print(f"Date range used: {date_from} -> {date_to}")
 
 
