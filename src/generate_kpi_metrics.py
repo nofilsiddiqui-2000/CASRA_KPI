@@ -8,7 +8,8 @@ Inputs (all read from the FINAL Excel produced by apply_snp_exceptions.py):
 Outputs:
     CASRA_KPI_OUTPUT/CASRA_KPI_METRICS_<date_from>.xlsx   (single row, per-run)
     CASRA_KPI_OUTPUT/CASRA_KPI_METRICS_MASTER.xlsx        (accumulating master;
-                                                           same Report Date overwrites)
+                                                           every run appends a
+                                                           new row, full history)
 
 All percentage columns are stored as decimal values. Power BI is expected
 to format them as percentages.
@@ -33,9 +34,12 @@ OUTPUT_DIR = ROOT_DIR / "CASRA_KPI_OUTPUT"
 
 PARTS_CREATED_COL = "Parts Created (ZMMR rows)"
 
-# Output column order, matching the spec.
+# Output column order, matching the spec (with Date From / Date To added so
+# every metrics row carries the KPI period it was computed for).
 METRIC_COLUMNS = [
     "Report Date",
+    "Date From",
+    "Date To",
     "Parts Created",
     "Storage Location",
     "QM Insp Type",
@@ -86,7 +90,12 @@ def get_parts_created(final_xlsx: Path) -> int:
     return int(run_summary[PARTS_CREATED_COL].iloc[0])
 
 
-def compute_metrics(final_df: pd.DataFrame, parts_created: int) -> dict:
+def compute_metrics(
+    final_df: pd.DataFrame,
+    parts_created: int,
+    date_from: str = "",
+    date_to: str = "",
+) -> dict:
     if parts_created <= 0:
         raise ValueError(
             f"Parts Created is {parts_created}; cannot compute KPI percentages."
@@ -127,6 +136,8 @@ def compute_metrics(final_df: pd.DataFrame, parts_created: int) -> dict:
 
     return {
         "Report Date": date.today(),
+        "Date From": date_from,
+        "Date To": date_to,
         "Parts Created": parts_created,
         "Storage Location": storage_location,
         "QM Insp Type": qm_insp_type,
@@ -141,7 +152,14 @@ def compute_metrics(final_df: pd.DataFrame, parts_created: int) -> dict:
     }
 
 
-def upsert_master(master_path: Path, new_row: dict) -> pd.DataFrame:
+def append_to_master(master_path: Path, new_row: dict) -> pd.DataFrame:
+    """Append new_row to the master metrics file as a new row.
+
+    Every run produces a new row (full history is preserved). If the file
+    doesn't exist yet, it's created. If older rows are missing the
+    Date From / Date To columns (added later), they'll show as blank in
+    the rewritten file.
+    """
     new_row_df = pd.DataFrame([new_row], columns=METRIC_COLUMNS)
 
     if master_path.exists():
@@ -150,12 +168,11 @@ def upsert_master(master_path: Path, new_row: dict) -> pd.DataFrame:
             existing["Report Date"] = pd.to_datetime(
                 existing["Report Date"], errors="coerce"
             ).dt.date
-            existing = existing[existing["Report Date"] != new_row["Report Date"]]
         combined = pd.concat([existing, new_row_df], ignore_index=True)
     else:
         combined = new_row_df
 
-    combined = combined.sort_values("Report Date").reset_index(drop=True)
+    combined = combined.reindex(columns=METRIC_COLUMNS)
     combined.to_excel(master_path, index=False, sheet_name="Metrics")
     return combined
 
@@ -170,7 +187,7 @@ def print_metrics(metrics: dict) -> None:
 
 
 def main() -> None:
-    date_from, _ = parse_date_range("generate_kpi_metrics")
+    date_from, date_to = parse_date_range("generate_kpi_metrics")
 
     final_xlsx = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
     per_run_metrics = OUTPUT_DIR / f"CASRA_KPI_METRICS_{date_from}.xlsx"
@@ -182,12 +199,12 @@ def main() -> None:
     final_df = pd.read_excel(final_xlsx, sheet_name="Final Output")
     parts_created = get_parts_created(final_xlsx)
 
-    metrics = compute_metrics(final_df, parts_created)
+    metrics = compute_metrics(final_df, parts_created, date_from, date_to)
 
     per_run_df = pd.DataFrame([metrics], columns=METRIC_COLUMNS)
     per_run_df.to_excel(per_run_metrics, index=False, sheet_name="Metrics")
 
-    master_df = upsert_master(master_metrics, metrics)
+    master_df = append_to_master(master_metrics, metrics)
 
     print("\nKPI Metrics:")
     print_metrics(metrics)

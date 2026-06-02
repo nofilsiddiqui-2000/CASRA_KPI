@@ -79,7 +79,7 @@ After a successful run, the following files appear in `CASRA_KPI_OUTPUT/`:
 | `CASRA_KPI_OUTPUT_<date_from>.xlsx`        | Intermediate KPI output (before SNP exceptions). |
 | `CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx`  | **Final** detail output used for reporting/visuals. Includes audit sheets for the SNP exceptions that were applied. |
 | `CASRA_KPI_METRICS_<date_from>.xlsx`       | **Per-run KPI metrics** summary (one row, the metrics for this run). |
-| `CASRA_KPI_METRICS_MASTER.xlsx`            | **Master KPI metrics** file. One row per Report Date, accumulates across runs (same Report Date overwrites). This is the file Power BI connects to. |
+| `CASRA_KPI_METRICS_MASTER.xlsx`            | **Master KPI metrics** file. **Every run appends a new row** so you keep the full history. This is the file Power BI connects to. |
 
 `<date_from>` is the start date you ran with, e.g. `CASRA_KPI_OUTPUT_20260501_FINAL.xlsx`.
 
@@ -96,10 +96,10 @@ The same numbers are also printed to the console at the end of the run.
 
 ### KPI metrics file (Power BI source)
 
-The dashboard metrics live in `CASRA_KPI_METRICS_MASTER.xlsx`. Each run appends one row keyed by `Report Date` (today's date when the script was executed). Re-running on the same day overwrites that day's row. Columns:
+The dashboard metrics live in `CASRA_KPI_METRICS_MASTER.xlsx`. **Every run appends a new row** — full history is kept, including multiple runs on the same day. Each row carries `Report Date` (the date the script ran) plus `Date From` / `Date To` (the KPI period that run was computed for). Columns:
 
-| Report Date | Parts Created | Storage Location | QM Insp Type | Valuation Type | Batch MNGMT | Serialized Profile | Class MOA | Unit of Measure | Hazmat | MRP Area | Total % |
-|---|---|---|---|---|---|---|---|---|---|---|---|
+| Report Date | Date From | Date To | Parts Created | Storage Location | QM Insp Type | Valuation Type | Batch MNGMT | Serialized Profile | Class MOA | Unit of Measure | Hazmat | MRP Area | Total % |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 
 All percentage columns are stored as **decimal values** (e.g. `0.0167` for 1.67%). Power BI is expected to format them as percentages.
 

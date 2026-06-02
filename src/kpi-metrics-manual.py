@@ -34,6 +34,38 @@ from generate_kpi_metrics import (
 )
 
 
+def _stringify_yyyymmdd(value) -> str:
+    # Run Summary dates are written as YYYYMMDD strings. Excel may round-trip
+    # them as ints/floats, so coerce safely.
+    if pd.isna(value):
+        return ""
+    if isinstance(value, (int, float)):
+        return str(int(value))
+    if isinstance(value, pd.Timestamp):
+        return value.strftime("%Y%m%d")
+    return str(value).strip()
+
+
+def get_dates_from_run_summary(input_xlsx: Path) -> tuple[str, str]:
+    try:
+        run_summary = pd.read_excel(input_xlsx, sheet_name="Run Summary")
+    except (ValueError, KeyError):
+        return "", ""
+
+    if run_summary.empty:
+        return "", ""
+
+    date_from = (
+        _stringify_yyyymmdd(run_summary["Date From"].iloc[0])
+        if "Date From" in run_summary.columns else ""
+    )
+    date_to = (
+        _stringify_yyyymmdd(run_summary["Date To"].iloc[0])
+        if "Date To" in run_summary.columns else ""
+    )
+    return date_from, date_to
+
+
 def parse_args() -> Path | None:
     parser = argparse.ArgumentParser(
         description="Manual KPI metrics generation from a chosen SNP-exceptions Excel file."
@@ -77,8 +109,9 @@ def main() -> None:
 
     final_df = pd.read_excel(input_file, sheet_name="Final Output")
     parts_created = get_parts_created(input_file)
+    date_from, date_to = get_dates_from_run_summary(input_file)
 
-    metrics = compute_metrics(final_df, parts_created)
+    metrics = compute_metrics(final_df, parts_created, date_from, date_to)
 
     today = date.today().strftime("%Y%m%d")
     output_file = OUTPUT_DIR / f"CASRA_KPI_METRICS_MANUAL_{today}.xlsx"
