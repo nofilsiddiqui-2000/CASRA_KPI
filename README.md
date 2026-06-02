@@ -149,3 +149,34 @@ python apply_snp_exceptions.py --date-from 20260501 --date-to 20260531
 ```
 
 If you omit the arguments, the step defaults to the previous calendar month.
+
+## On-demand metrics from a custom input file
+
+If you've **manually modified** an SNP-exceptions output file (corrections, what-if testing, etc.) and want to regenerate just the KPI metrics from that specific file, use `kpi-metrics-manual.py`. It runs in isolation, **does not** trigger the rest of the pipeline, and **does not** update `CASRA_KPI_METRICS_MASTER.xlsx`.
+
+Two ways to run it:
+
+**Interactive prompt:**
+
+```powershell
+python kpi-metrics-manual.py
+```
+
+You'll be asked for the path to the input file:
+
+```
+KPI Metrics - Manual Run
+----------------------------------------
+Specify the SNP-exceptions Excel file to use as input.
+It must contain 'Final Output' and 'Run Summary' sheets.
+
+Input file path:
+```
+
+**Direct path (no prompt):**
+
+```powershell
+python kpi-metrics-manual.py --input "C:\path\to\CASRA_KPI_OUTPUT_20260501_FINAL.xlsx"
+```
+
+Output: a single-row file `CASRA_KPI_OUTPUT/CASRA_KPI_METRICS_MANUAL_<today>.xlsx` containing the same KPI columns as the automated metrics file.

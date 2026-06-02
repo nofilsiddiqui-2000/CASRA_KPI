@@ -31,12 +31,6 @@ from casra_dates import parse_date_range
 ROOT_DIR = Path(r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION")
 OUTPUT_DIR = ROOT_DIR / "CASRA_KPI_OUTPUT"
 
-date_from, _ = parse_date_range("generate_kpi_metrics")
-
-FINAL_OUTPUT_FILE = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
-PER_RUN_METRICS_FILE = OUTPUT_DIR / f"CASRA_KPI_METRICS_{date_from}.xlsx"
-MASTER_METRICS_FILE = OUTPUT_DIR / "CASRA_KPI_METRICS_MASTER.xlsx"
-
 PARTS_CREATED_COL = "Parts Created (ZMMR rows)"
 
 # Output column order, matching the spec.
@@ -166,8 +160,23 @@ def upsert_master(master_path: Path, new_row: dict) -> pd.DataFrame:
     return combined
 
 
+def print_metrics(metrics: dict) -> None:
+    for col in METRIC_COLUMNS:
+        value = metrics[col]
+        if isinstance(value, float):
+            print(f"  {col:<20} {value:.4f}  ({value:.2%})")
+        else:
+            print(f"  {col:<20} {value}")
+
+
 def main() -> None:
-    final_xlsx = validate_file(FINAL_OUTPUT_FILE, "FINAL output")
+    date_from, _ = parse_date_range("generate_kpi_metrics")
+
+    final_xlsx = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
+    per_run_metrics = OUTPUT_DIR / f"CASRA_KPI_METRICS_{date_from}.xlsx"
+    master_metrics = OUTPUT_DIR / "CASRA_KPI_METRICS_MASTER.xlsx"
+
+    validate_file(final_xlsx, "FINAL output")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     final_df = pd.read_excel(final_xlsx, sheet_name="Final Output")
@@ -176,20 +185,15 @@ def main() -> None:
     metrics = compute_metrics(final_df, parts_created)
 
     per_run_df = pd.DataFrame([metrics], columns=METRIC_COLUMNS)
-    per_run_df.to_excel(PER_RUN_METRICS_FILE, index=False, sheet_name="Metrics")
+    per_run_df.to_excel(per_run_metrics, index=False, sheet_name="Metrics")
 
-    master_df = upsert_master(MASTER_METRICS_FILE, metrics)
+    master_df = upsert_master(master_metrics, metrics)
 
     print("\nKPI Metrics:")
-    for col in METRIC_COLUMNS:
-        value = metrics[col]
-        if isinstance(value, float):
-            print(f"  {col:<20} {value:.4f}  ({value:.2%})")
-        else:
-            print(f"  {col:<20} {value}")
+    print_metrics(metrics)
 
-    print(f"\nPer-run metrics file: {PER_RUN_METRICS_FILE}")
-    print(f"Master metrics file:  {MASTER_METRICS_FILE}  ({len(master_df)} row(s))")
+    print(f"\nPer-run metrics file: {per_run_metrics}")
+    print(f"Master metrics file:  {master_metrics}  ({len(master_df)} row(s))")
 
 
 if __name__ == "__main__":
