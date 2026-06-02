@@ -5,17 +5,42 @@ from casra_dates import parse_date_range
 from casra_paths import (
     LOOKUP_DIR,
     ensure_output_dirs,
-    intermediate_output,
+    resolve_intermediate_output,
     snp_final_output,
 )
 
 date_from, _ = parse_date_range("apply_snp_exceptions")
 
-ACCESS_OUTPUT_FILE = intermediate_output(date_from)
 # Data Quality file is downloaded manually each month and dropped into LookUp Tables.
 # Update this filename if the downloaded file is named differently for a given run.
 DATAQUALITY_FILE = LOOKUP_DIR / "Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx"
-FINAL_OUTPUT_FILE = snp_final_output(date_from)
+
+# Column names in the DQ export vary by download; these lists are tried in order.
+DQ_DATE_COLUMNS = [
+    "Date",
+    "DATE",
+    "Created on",
+    "Created On",
+    "Created Date",
+    "Creation Date",
+]
+DQ_PART_COLUMNS = [
+    "P/N",
+    "P / N",
+    "PN",
+    "P-N",
+    "Part Number",
+    "Part No",
+    "Part No.",
+    "Material Number",
+    "Material",
+]
+DQ_AUDIT_COLUMNS = [
+    "Item Category Group",
+    "REF",
+    "Comment",
+    "By",
+]
 
 
 CHECK_COLUMNS = [
@@ -43,9 +68,57 @@ def validate_file(path: Path, label: str) -> Path:
     return path
 
 
+def _normalize_header(value) -> str:
+    text = str(value).replace("\u00a0", " ").strip()
+    return " ".join(text.split())
+
+
+def find_col(df: pd.DataFrame, possible_names: list[str], label: str) -> str:
+    lookup = {_normalize_header(col).lower(): col for col in df.columns}
+    for name in possible_names:
+        key = _normalize_header(name).lower()
+        if key in lookup:
+            return lookup[key]
+    raise KeyError(
+        f"Missing {label} column. Tried: {possible_names}\n"
+        f"Columns found in file: {list(df.columns)}"
+    )
+
+
 def read_excel(path: Path) -> pd.DataFrame:
     df = pd.read_excel(path, dtype=object)
-    df.columns = df.columns.astype(str).str.strip()
+    df.columns = [_normalize_header(c) for c in df.columns]
+    return df
+
+
+def read_data_quality_file(path: Path) -> pd.DataFrame:
+    """Load the DQ workbook, picking the sheet/row that has Date + Part columns."""
+    xl = pd.ExcelFile(path)
+
+    for sheet_name in xl.sheet_names:
+        raw = pd.read_excel(path, sheet_name=sheet_name, header=None, dtype=object)
+        max_scan = min(20, len(raw))
+
+        for header_row in range(max_scan):
+            headers = [_normalize_header(v) for v in raw.iloc[header_row].tolist()]
+            probe = pd.DataFrame(raw.iloc[header_row + 1 :].values, columns=headers)
+            probe = probe.dropna(how="all").reset_index(drop=True)
+
+            if probe.empty:
+                continue
+
+            try:
+                find_col(probe, DQ_DATE_COLUMNS, "Date")
+                find_col(probe, DQ_PART_COLUMNS, "P/N")
+                print(f"  Data Quality: sheet '{sheet_name}', header row {header_row + 1}")
+                return probe
+            except KeyError:
+                continue
+
+    # Last attempt: first sheet, row 0 as header (original behaviour).
+    df = read_excel(path)
+    find_col(df, DQ_DATE_COLUMNS, "Date")
+    find_col(df, DQ_PART_COLUMNS, "P/N")
     return df
 
 
@@ -85,20 +158,18 @@ def clean_date(value) -> str:
 
 def apply_snp_exceptions(access_df: pd.DataFrame, dq_df: pd.DataFrame):
     required_access_cols = ["Material Number", "Created on", "Check_SNP", "Errors"]
-    required_dq_cols = ["Date", "P/N"]
 
     missing_access = [col for col in required_access_cols if col not in access_df.columns]
-    missing_dq = [col for col in required_dq_cols if col not in dq_df.columns]
     missing_checks = [col for col in CHECK_COLUMNS if col not in access_df.columns]
 
     if missing_access:
         raise KeyError(f"Missing columns in Access output: {missing_access}")
 
-    if missing_dq:
-        raise KeyError(f"Missing columns in Data Quality file: {missing_dq}")
-
     if missing_checks:
         raise KeyError(f"Missing check columns in Access output: {missing_checks}")
+
+    dq_date_col = find_col(dq_df, DQ_DATE_COLUMNS, "Date")
+    dq_part_col = find_col(dq_df, DQ_PART_COLUMNS, "P/N")
 
     access_df = access_df.copy()
     dq_df = dq_df.copy()
@@ -108,13 +179,16 @@ def apply_snp_exceptions(access_df: pd.DataFrame, dq_df: pd.DataFrame):
     access_df["_PartKey"] = access_df["Material Number"].apply(clean_part)
     access_df["_DateKey"] = access_df["Created on"].apply(clean_date)
 
-    dq_df["_PartKey"] = dq_df["P/N"].apply(clean_part)
-    dq_df["_DateKey"] = dq_df["Date"].apply(clean_date)
+    dq_df["_PartKey"] = dq_df[dq_part_col].apply(clean_part)
+    dq_df["_DateKey"] = dq_df[dq_date_col].apply(clean_date)
+
+    audit_cols = [c for c in DQ_AUDIT_COLUMNS if c in dq_df.columns]
+    dq_export_cols = ["_PartKey", "_DateKey", dq_date_col, dq_part_col] + audit_cols
 
     dq_keys_df = (
         dq_df.loc[
             (dq_df["_PartKey"] != "") & (dq_df["_DateKey"] != ""),
-            ["_PartKey", "_DateKey", "Date", "P/N", "Item Category Group", "REF", "Comment", "By"]
+            dq_export_cols,
         ]
         .drop_duplicates(subset=["_PartKey", "_DateKey"])
         .copy()
@@ -171,13 +245,18 @@ def apply_snp_exceptions(access_df: pd.DataFrame, dq_df: pd.DataFrame):
 
 
 def main() -> None:
-    access_output_file = validate_file(ACCESS_OUTPUT_FILE, "Access output")
+    access_output_file = validate_file(
+        resolve_intermediate_output(date_from),
+        "Access output (Intermediate/ or legacy CASRA_KPI_OUTPUT root)",
+    )
     dataquality_file = validate_file(DATAQUALITY_FILE, "Data Quality file")
 
     ensure_output_dirs()
+    final_output_file = snp_final_output(date_from)
 
     access_df = read_excel(access_output_file)
-    dq_df = read_excel(dataquality_file)
+    print(f"  Reading Data Quality file: {dataquality_file.name}")
+    dq_df = read_data_quality_file(dataquality_file)
     run_summary = read_run_summary(access_output_file)
 
     final_df, snp_audit, matched_dq_rows, remaining_snp_errors, dq_keys_df = apply_snp_exceptions(access_df, dq_df)
@@ -200,7 +279,7 @@ def main() -> None:
         for col, val in snp_summary_cols.items():
             run_summary[col] = val
 
-    with pd.ExcelWriter(FINAL_OUTPUT_FILE, engine="openpyxl") as writer:
+    with pd.ExcelWriter(final_output_file, engine="openpyxl") as writer:
         final_df.to_excel(writer, sheet_name="Final Output", index=False)
         run_summary.to_excel(writer, sheet_name="Run Summary", index=False)
         snp_audit.to_excel(writer, sheet_name="SNP Audit", index=False)
@@ -215,7 +294,7 @@ def main() -> None:
     if not run_summary.empty:
         for col in run_summary.columns:
             print(f"  {col}: {run_summary.iloc[0][col]}")
-    print(f"\nOutput created: {FINAL_OUTPUT_FILE}")
+    print(f"\nOutput created: {final_output_file}")
 
 
 if __name__ == "__main__":

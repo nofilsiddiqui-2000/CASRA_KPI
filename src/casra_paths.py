@@ -54,6 +54,28 @@ def snp_final_output(date_from: str) -> Path:
     return SNP_FINAL_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
 
 
+def resolve_intermediate_output(date_from: str) -> Path:
+    """Prefer Intermediate/; fall back to legacy flat CASRA_KPI_OUTPUT root."""
+    current = intermediate_output(date_from)
+    if current.exists():
+        return current
+    legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
+    if legacy.exists():
+        return legacy
+    return current
+
+
+def resolve_snp_final_output(date_from: str) -> Path:
+    """Prefer SNP_Final/; fall back to legacy flat CASRA_KPI_OUTPUT root."""
+    current = snp_final_output(date_from)
+    if current.exists():
+        return current
+    legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
+    if legacy.exists():
+        return legacy
+    return current
+
+
 def kpi_metrics_output(date_from: str) -> Path:
     return KPI_METRICS_DIR / f"CASRA_KPI_METRICS_{date_from}.xlsx"
 

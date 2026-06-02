@@ -31,7 +31,7 @@ from casra_paths import (
     ensure_output_dirs,
     kpi_master_output,
     kpi_metrics_output,
-    snp_final_output,
+    resolve_snp_final_output,
 )
 
 PARTS_CREATED_COL = "Parts Created (ZMMR rows)"
@@ -191,7 +191,7 @@ def print_metrics(metrics: dict) -> None:
 def main() -> None:
     date_from, date_to = parse_date_range("generate_kpi_metrics")
 
-    final_xlsx = snp_final_output(date_from)
+    final_xlsx = resolve_snp_final_output(date_from)
     per_run_metrics = kpi_metrics_output(date_from)
     master_metrics = kpi_master_output()
 
