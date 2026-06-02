@@ -29,6 +29,7 @@ from generate_kpi_metrics import (
     METRIC_COLUMNS,
     compute_metrics,
     get_parts_created,
+    normalize_date_columns,
     print_metrics,
     validate_file,
 )
@@ -116,7 +117,7 @@ def main() -> None:
     today = date.today().strftime("%Y%m%d")
     output_file = kpi_metrics_manual_output(today)
 
-    pd.DataFrame([metrics], columns=METRIC_COLUMNS).to_excel(
+    normalize_date_columns(pd.DataFrame([metrics], columns=METRIC_COLUMNS)).to_excel(
         output_file, index=False, sheet_name="Metrics"
     )
 

@@ -64,3 +64,40 @@ def parse_date_range(description: str = "CASRA KPI step") -> tuple[str, str]:
     )
     args = parser.parse_args()
     return args.date_from, args.date_to
+
+
+def yyyymmdd_to_date(value) -> date | None:
+    """Convert YYYYMMDD (string or Excel int) to a calendar date for Excel output."""
+    if value is None:
+        return None
+
+    if hasattr(value, "to_pydatetime"):
+        try:
+            value = value.to_pydatetime()
+        except (ValueError, TypeError):
+            return None
+
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+
+    text = str(value).strip()
+    if not text or text.lower() in ("nan", "nat", "none"):
+        return None
+
+    # Excel sometimes stores 20260531 as float 20260531.0
+    if "." in text:
+        text = text.split(".", 1)[0]
+
+    if len(text) >= 8 and text[:8].isdigit():
+        try:
+            return datetime.strptime(text[:8], DATE_FORMAT).date()
+        except ValueError:
+            return None
+
+    try:
+        parsed = datetime.fromisoformat(text[:10])
+        return parsed.date()
+    except ValueError:
+        return None

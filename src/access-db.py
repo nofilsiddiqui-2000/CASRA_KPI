@@ -1,7 +1,7 @@
 from pathlib import Path
 import pandas as pd
 
-from casra_dates import parse_date_range
+from casra_dates import parse_date_range, yyyymmdd_to_date
 from casra_paths import (
     LOOKUP_DIR,
     SAP_DIR,
@@ -417,8 +417,8 @@ def main() -> None:
     rows_with_errors = int((final_output["Errors"] > 0).sum())
 
     run_summary = pd.DataFrame([{
-        "Date From": date_from,
-        "Date To": date_to,
+        "Date From": yyyymmdd_to_date(date_from),
+        "Date To": yyyymmdd_to_date(date_to),
         "Parts Created (ZMMR rows)": parts_created,
         "Rows in Output": len(final_output),
         "Rows with Errors (pre-SNP)": rows_with_errors,

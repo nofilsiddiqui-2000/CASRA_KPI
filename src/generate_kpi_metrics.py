@@ -26,7 +26,7 @@ from datetime import date
 from pathlib import Path
 import pandas as pd
 
-from casra_dates import parse_date_range
+from casra_dates import parse_date_range, yyyymmdd_to_date
 from casra_paths import (
     ensure_output_dirs,
     kpi_master_output,
@@ -35,6 +35,7 @@ from casra_paths import (
 )
 
 PARTS_CREATED_COL = "Parts Created (ZMMR rows)"
+DATE_COLUMNS = ("Report Date", "Date From", "Date To")
 
 # Output column order, matching the spec (with Date From / Date To added so
 # every metrics row carries the KPI period it was computed for).
@@ -136,10 +137,13 @@ def compute_metrics(
         + mrp_area
     )
 
+    period_from = yyyymmdd_to_date(date_from)
+    period_to = yyyymmdd_to_date(date_to)
+
     return {
         "Report Date": date.today(),
-        "Date From": date_from,
-        "Date To": date_to,
+        "Date From": period_from if period_from is not None else pd.NaT,
+        "Date To": period_to if period_to is not None else pd.NaT,
         "Parts Created": parts_created,
         "Storage Location": storage_location,
         "QM Insp Type": qm_insp_type,
@@ -154,27 +158,35 @@ def compute_metrics(
     }
 
 
+def normalize_date_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Ensure date columns are real dates in Excel (not YYYYMMDD integers)."""
+    df = df.copy()
+    for col in DATE_COLUMNS:
+        if col not in df.columns:
+            continue
+        df[col] = df[col].apply(
+            lambda v: pd.NaT if pd.isna(v) else (yyyymmdd_to_date(v) or pd.NaT)
+        )
+    return df
+
+
 def append_to_master(master_path: Path, new_row: dict) -> pd.DataFrame:
     """Append new_row to the master metrics file as a new row.
 
     Every run produces a new row (full history is preserved). If the file
-    doesn't exist yet, it's created. If older rows are missing the
-    Date From / Date To columns (added later), they'll show as blank in
-    the rewritten file.
+    doesn't exist yet, it's created. Existing rows are normalized so
+    Date From / Date To display as dates (not YYYYMMDD numbers).
     """
     new_row_df = pd.DataFrame([new_row], columns=METRIC_COLUMNS)
 
     if master_path.exists():
         existing = pd.read_excel(master_path)
-        if "Report Date" in existing.columns:
-            existing["Report Date"] = pd.to_datetime(
-                existing["Report Date"], errors="coerce"
-            ).dt.date
+        existing = normalize_date_columns(existing)
         combined = pd.concat([existing, new_row_df], ignore_index=True)
     else:
         combined = new_row_df
 
-    combined = combined.reindex(columns=METRIC_COLUMNS)
+    combined = normalize_date_columns(combined.reindex(columns=METRIC_COLUMNS))
     combined.to_excel(master_path, index=False, sheet_name="Metrics")
     return combined
 
@@ -203,7 +215,7 @@ def main() -> None:
 
     metrics = compute_metrics(final_df, parts_created, date_from, date_to)
 
-    per_run_df = pd.DataFrame([metrics], columns=METRIC_COLUMNS)
+    per_run_df = normalize_date_columns(pd.DataFrame([metrics], columns=METRIC_COLUMNS))
     per_run_df.to_excel(per_run_metrics, index=False, sheet_name="Metrics")
 
     master_df = append_to_master(master_metrics, metrics)
