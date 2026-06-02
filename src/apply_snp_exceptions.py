@@ -6,12 +6,14 @@ from casra_dates import parse_date_range
 
 ROOT_DIR = Path(r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION")
 OUTPUT_DIR = ROOT_DIR / "CASRA_KPI_OUTPUT"
-DATAQUALITY_DIR = ROOT_DIR / "Check_SNP"  # downloaded manually each month, see Data_Quality_*.xlsx
+LOOKUP_DIR = ROOT_DIR / "LookUp Tables"
 
 date_from, _ = parse_date_range("apply_snp_exceptions")
 
 ACCESS_OUTPUT_FILE = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
-DATAQUALITY_FILE = DATAQUALITY_DIR / "Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx"
+# Data Quality file is downloaded manually each month and dropped into LookUp Tables.
+# Update this filename if the downloaded file is named differently for a given run.
+DATAQUALITY_FILE = LOOKUP_DIR / "Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx"
 FINAL_OUTPUT_FILE = OUTPUT_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
 
 

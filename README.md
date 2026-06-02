@@ -104,9 +104,9 @@ CASRA-KPI-AUTOMATION/
 ├── LookUp Tables/
 │   ├── RuleSloc.xlsx
 │   ├── QMatMissing.xlsx
-│   └── QMATRules.xlsx
-├── Check_SNP/
-│   └── Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx   (download manually each month)
+│   ├── QMATRules.xlsx
+│   └── Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx   (download manually each month;
+│                                                    update the filename in apply_snp_exceptions.py if it changes)
 └── CASRA_KPI_OUTPUT/
     ├── CASRA_KPI_OUTPUT_<date_from>.xlsx
     └── CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx
