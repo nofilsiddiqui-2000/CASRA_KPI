@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 import os, time
 import win32com.client
 
+from casra_dates import parse_date_range
+
 # from Utilities import SharePointAPI
 # from Utilities import AzureAPI
 
@@ -21,17 +23,6 @@ def read_config():
                 continue
             config_data[key.strip()] = value.strip().strip('"').strip("'")
     return config_data
-
-# def get_previous_month_dates():
-#     today = datetime.today()
-#     first_day_current_month = today.replace(day=1)
-#     last_day_previous_month = first_day_current_month - timedelta(days=1)
-#     first_day_previous_month = last_day_previous_month.replace(day=1)
-#     return first_day_previous_month.strftime("%Y%m%d"), last_day_previous_month.strftime("%Y%m%d")
-
-# # if i want to hardcode the date for testing:
-def get_previous_month_dates():
-    return "20260330", "20260503"   # runs the script from mar 30 to may 3 for testing purposes. Change back to dynamic dates when done.
 
 def convert_txt_to_xlsx(txt_path, xlsx_path):
     excel = None
@@ -98,7 +89,7 @@ if automation_status == "On":
         export_path = r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\SAP_Extracts\ZMNM"      # this needs to  be the path to save the extracts to, and the next script will need to be updated to pull from this path as well. I have it set to a folder in my documents for testing, but in production it should be a shared drive or SharePoint folder that the next script can access.
         os.makedirs(export_path, exist_ok=True)
 
-        date_from, date_to = get_previous_month_dates()
+        date_from, date_to = parse_date_range("Main_SAP_ZMNM_xl")
 
         txt_file_name = f"ZMNM_{date_from}.txt"
         xlsx_file_name = f"ZMNM_{date_from}.xlsx"
