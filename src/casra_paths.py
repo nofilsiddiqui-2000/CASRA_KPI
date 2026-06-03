@@ -6,6 +6,7 @@ SAP_Extracts/ZMNM and SAP_Extracts/ZMMR2199M).
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 
@@ -34,6 +35,15 @@ KPI_MASTER_DIR = OUTPUT_ROOT / "KPI_Master"
 LOOKUP_DIR = ROOT_DIR / "LookUp Tables"
 SAP_DIR = ROOT_DIR / "SAP_Extracts"
 
+# Power BI reads from this SharePoint-synced folder on the work desktop.
+# Create SNP_Final/ and KPI_Master/ inside it, then update this path to match.
+SHAREPOINT_SYNC_ROOT = Path(
+    r"C:\Users\B1020000\Bombardier\SharePoint-Sync\CASRA_KPI_PowerBI"
+)
+
+SHAREPOINT_SNP_FINAL_DIR = SHAREPOINT_SYNC_ROOT / "SNP_Final"
+SHAREPOINT_KPI_MASTER_DIR = SHAREPOINT_SYNC_ROOT / "KPI_Master"
+
 
 def ensure_output_dirs() -> None:
     for folder in (
@@ -42,8 +52,21 @@ def ensure_output_dirs() -> None:
         KPI_METRICS_DIR,
         KPI_METRICS_MANUAL_DIR,
         KPI_MASTER_DIR,
+        SHAREPOINT_SNP_FINAL_DIR,
+        SHAREPOINT_KPI_MASTER_DIR,
     ):
         folder.mkdir(parents=True, exist_ok=True)
+
+
+def mirror_to_sharepoint(local_file: Path, sharepoint_dir: Path) -> Path:
+    """Copy a pipeline output file into the SharePoint-synced folder for Power BI."""
+    if not local_file.exists():
+        raise FileNotFoundError(f"Cannot mirror missing file: {local_file}")
+
+    sharepoint_dir.mkdir(parents=True, exist_ok=True)
+    destination = sharepoint_dir / local_file.name
+    shutil.copy2(local_file, destination)
+    return destination
 
 
 def intermediate_output(date_from: str) -> Path:

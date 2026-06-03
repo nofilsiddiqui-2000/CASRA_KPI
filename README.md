@@ -21,7 +21,7 @@ Everything is driven from a single entry point: `src/Run_KPI.py`.
 | `apply_snp_exceptions.py` | SNP exception pass on intermediate output |
 | `generate_kpi_metrics.py` | Dashboard metrics + master file append |
 | `kpi-metrics-manual.py` | On-demand metrics from a chosen FINAL file |
-| `casra_paths.py` | Folder layout under `CASRA_KPI_OUTPUT/` |
+| `casra_paths.py` | Folder layout under `CASRA_KPI_OUTPUT/` + SharePoint sync paths for Power BI |
 | `casra_dates.py` | `--date-from` / `--date-to` parsing |
 | `casra_constants.py` | Shared column lists (`CHECK_COLUMNS`, DQ columns) |
 | `casra_excel.py` | Shared Excel helpers (read, column lookup, Run Summary) |
@@ -149,6 +149,25 @@ CASRA-KPI-AUTOMATION/
     ├── KPI_Master/           CASRA_KPI_METRICS_MASTER.xlsx
     └── KPI_Metrics_Manual/   CASRA_KPI_METRICS_MANUAL_<today>.xlsx  (manual script only)
 ```
+
+### Power BI (SharePoint-synced folder)
+
+Two files are copied automatically into your SharePoint-synced folder after each run (in addition to the local `CASRA_KPI_OUTPUT` copies):
+
+| SharePoint subfolder | File | Written by |
+|---------------------|------|------------|
+| `SNP_Final/` | `CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx` | `apply_snp_exceptions.py` |
+| `KPI_Master/` | `CASRA_KPI_METRICS_MASTER.xlsx` | `generate_kpi_metrics.py` |
+
+Update the path in `src/casra_paths.py`:
+
+```python
+SHAREPOINT_SYNC_ROOT = Path(r"C:\Users\B1020000\Bombardier\SharePoint-Sync\CASRA_KPI_PowerBI")
+```
+
+Create `SNP_Final` and `KPI_Master` inside that folder once, then point Power BI at those two locations.
+
+---
 
 A `config.txt` lives next to the scripts in `src/` and holds the SAP credentials:
 

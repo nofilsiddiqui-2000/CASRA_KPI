@@ -10,7 +10,14 @@ from casra_excel import (
     read_run_summary,
     validate_file,
 )
-from casra_paths import LOOKUP_DIR, ensure_output_dirs, resolve_intermediate_output, snp_final_output
+from casra_paths import (
+    LOOKUP_DIR,
+    SHAREPOINT_SNP_FINAL_DIR,
+    ensure_output_dirs,
+    mirror_to_sharepoint,
+    resolve_intermediate_output,
+    snp_final_output,
+)
 
 # Downloaded manually each month into LookUp Tables — update filename when it changes.
 DATAQUALITY_FILE = LOOKUP_DIR / "Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx"
@@ -152,7 +159,10 @@ def main() -> None:
     if not run_summary.empty:
         for col in run_summary.columns:
             print(f"  {col}: {run_summary.iloc[0][col]}")
+    sharepoint_copy = mirror_to_sharepoint(output_file, SHAREPOINT_SNP_FINAL_DIR)
+
     print(f"\nOutput created: {output_file}")
+    print(f"Power BI copy:    {sharepoint_copy}")
 
 
 if __name__ == "__main__":

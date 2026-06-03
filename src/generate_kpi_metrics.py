@@ -12,9 +12,11 @@ from casra_constants import PARTS_CREATED_COL
 from casra_dates import parse_date_range, yyyymmdd_to_date
 from casra_excel import validate_file
 from casra_paths import (
+    SHAREPOINT_KPI_MASTER_DIR,
     ensure_output_dirs,
     kpi_master_output,
     kpi_metrics_output,
+    mirror_to_sharepoint,
     resolve_snp_final_output,
 )
 
@@ -163,8 +165,11 @@ def main() -> None:
 
     print("\nKPI Metrics:")
     print_metrics(metrics)
+    sharepoint_copy = mirror_to_sharepoint(master_path, SHAREPOINT_KPI_MASTER_DIR)
+
     print(f"\nPer-run metrics file: {per_run_path}")
     print(f"Master metrics file:  {master_path}  ({len(master_df)} row(s))")
+    print(f"Power BI copy:        {sharepoint_copy}")
 
 
 if __name__ == "__main__":
