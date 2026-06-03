@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CASRA KPI — Dashboard layout mockup</title>
+  <style>
+    :root {
+      --navy: #1a3a5c;
+      --blue: #3498db;
+      --orange: #e67e22;
+      --red: #c0392b;
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --muted: #7a8a9a;
+      --border: #d5dee8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: #2c3e50;
+      padding: 24px;
+      line-height: 1.4;
+    }
+    header {
+      margin-bottom: 20px;
+      border-bottom: 3px solid var(--navy);
+      padding-bottom: 12px;
+    }
+    header h1 { font-size: 1.5rem; color: var(--navy); }
+    header p { color: var(--muted); font-size: 0.9rem; margin-top: 6px; }
+    .slicers {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .slicer {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+    }
+    .slicer strong { color: var(--navy); }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      border-top: 4px solid var(--navy);
+    }
+    .kpi-card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi-card .value { font-size: 2rem; font-weight: 700; color: var(--navy); margin: 6px 0; }
+    .kpi-card .sub { font-size: 0.8rem; color: var(--muted); }
+    .kpi-card.warn { border-top-color: var(--orange); }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .panel h2 {
+      font-size: 0.95rem;
+      color: var(--navy);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .trend-chart {
+      height: 200px;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      padding: 10px 0 30px;
+      border-bottom: 2px solid var(--border);
+    }
+    .trend-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .trend-bar {
+      width: 100%;
+      max-width: 48px;
+      background: linear-gradient(180deg, var(--navy), #4a6fa5);
+      border-radius: 4px 4px 0 0;
+    }
+    .trend-col span { font-size: 0.7rem; color: var(--muted); }
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+    }
+    .bar-row .name { width: 140px; flex-shrink: 0; }
+    .bar-row .track {
+      flex: 1;
+      height: 18px;
+      background: #eef2f6;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-row .fill {
+      height: 100%;
+      border-radius: 4px;
+    }
+    .bar-row .pct { width: 42px; text-align: right; font-weight: 600; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    th {
+      background: var(--navy);
+      color: white;
+      text-align: left;
+      padding: 8px 10px;
+    }
+    td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .flag { display: inline-block; width: 18px; text-align: center; }
+    .flag.yes { color: var(--red); font-weight: bold; }
+    .flag.no { color: #95a5a6; }
+    .pages {
+      margin-top: 24px;
+      padding: 16px;
+      background: #e8f0f8;
+      border-radius: 8px;
+      font-size: 0.88rem;
+    }
+    .pages h3 { color: var(--navy); margin-bottom: 8px; }
+    .pages ol { margin-left: 20px; }
+    .pages li { margin-bottom: 6px; }
+    @media (max-width: 900px) {
+      .kpi-row { grid-template-columns: 1fr 1fr; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CASRA Material Master KPI</h1>
+    <p>Layout mockup — sample data only. Suggested Power BI structure for KPI Master + SNP Final detail.</p>
+  </header>
+
+  <div class="slicers">
+    <div class="slicer"><strong>Period:</strong> Mar 2026 (20260301 – 20260331)</div>
+    <div class="slicer"><strong>Plant:</strong> All</div>
+    <div class="slicer"><strong>MTyp:</strong> HALB</div>
+    <div class="slicer"><strong>Report date:</strong> Apr 2, 2026</div>
+  </div>
+
+  <section class="kpi-row">
+    <div class="kpi-card">
+      <div class="label">Parts created</div>
+      <div class="value">279</div>
+      <div class="sub">ZMMR row count (denominator)</div>
+    </div>
+    <div class="kpi-card warn">
+      <div class="label">Total error rate</div>
+      <div class="value">10.7%</div>
+      <div class="sub">All categories combined</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Serialized profile</div>
+      <div class="value">1.4%</div>
+      <div class="sub">After SNP exceptions</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Parts with issues</div>
+      <div class="value">12</div>
+      <div class="sub">4.3% of output rows</div>
+    </div>
+  </section>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h2>Trend — total error rate over time</h2>
+      <div class="trend-chart" aria-label="Trend mockup">
+        <div class="trend-col"><div class="trend-bar" style="height:120px"></div><span>Oct</span></div>
+        <div class="trend-col"><div class="trend-bar" style="height:112px"></div><span>Nov</span></div>
+        <div class="trend-col"><div class="trend-bar" style="height:100px"></div><span>Dec</span></div>
+        <div class="trend-col"><div class="trend-bar" style="height:94px"></div><span>Jan</span></div>
+        <div class="trend-col"><div class="trend-bar" style="height:86px"></div><span>Feb</span></div>
+        <div class="trend-col"><div class="trend-bar" style="height:75px"></div><span>Mar</span></div>
+      </div>
+      <p style="font-size:0.75rem;color:var(--muted);margin-top:8px">Power BI: line chart from KPI_Master — Total % + optional category lines</p>
+    </div>
+    <div class="panel">
+      <h2>Latest period — error rate by category</h2>
+      <div class="bar-row"><span class="name">Storage Location</span><div class="track"><div class="fill" style="width:31%;background:var(--blue)"></div></div><span class="pct">3.1%</span></div>
+      <div class="bar-row"><span class="name">QM Insp Type</span><div class="track"><div class="fill" style="width:12%;background:var(--blue)"></div></div><span class="pct">1.2%</span></div>
+      <div class="bar-row"><span class="name">Valuation Type</span><div class="track"><div class="fill" style="width:20%;background:var(--orange)"></div></div><span class="pct">2.0%</span></div>
+      <div class="bar-row"><span class="name">Class MOA</span><div class="track"><div class="fill" style="width:14%;background:var(--blue)"></div></div><span class="pct">1.4%</span></div>
+      <div class="bar-row"><span class="name">Serialized Profile</span><div class="track"><div class="fill" style="width:14%;background:var(--orange)"></div></div><span class="pct">1.4%</span></div>
+      <div class="bar-row"><span class="name">Batch MNGMT</span><div class="track"><div class="fill" style="width:5%;background:var(--blue)"></div></div><span class="pct">0.5%</span></div>
+      <div class="bar-row"><span class="name">Unit of Measure</span><div class="track"><div class="fill" style="width:5%;background:var(--blue)"></div></div><span class="pct">0.5%</span></div>
+      <div class="bar-row"><span class="name">MRP Area</span><div class="track"><div class="fill" style="width:4%;background:var(--blue)"></div></div><span class="pct">0.4%</span></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h2>Drill-down — top parts by error count</h2>
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">From SNP_Final detail file — click row → detail page in Power BI</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Material</th><th>Plant</th><th>Errors</th>
+            <th>SNP</th><th>SLoc</th><th>QMAT</th><th>VType</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>PN-100042</td><td>3000</td><td>5</td><td class="flag yes">1</td><td class="flag yes">1</td><td class="flag no">0</td><td class="flag yes">1</td></tr>
+          <tr><td>PN-100118</td><td>3100</td><td>4</td><td class="flag no">0</td><td class="flag yes">1</td><td class="flag yes">1</td><td class="flag no">0</td></tr>
+          <tr><td>PN-100205</td><td>3000</td><td>3</td><td class="flag yes">1</td><td class="flag no">0</td><td class="flag no">0</td><td class="flag yes">1</td></tr>
+          <tr><td>PN-100331</td><td>3200</td><td>3</td><td class="flag no">0</td><td class="flag yes">1</td><td class="flag no">0</td><td class="flag yes">1</td></tr>
+          <tr><td>PN-100089</td><td>3000</td><td>2</td><td class="flag no">0</td><td class="flag no">0</td><td class="flag yes">1</td><td class="flag no">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <h2>Month-over-month — category comparison</h2>
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px">Clustered bar or small multiples — spot which category is improving</p>
+      <div class="bar-row"><span class="name">Storage (Feb→Mar)</span><div class="track"><div class="fill" style="width:55%;background:#95a5a6"></div></div><span class="pct">3.3→3.1</span></div>
+      <div class="bar-row"><span class="name">SNP (Feb→Mar)</span><div class="track"><div class="fill" style="width:40%;background:var(--orange)"></div></div><span class="pct">1.7→1.4</span></div>
+      <div class="bar-row"><span class="name">Valuation (Feb→Mar)</span><div class="track"><div class="fill" style="width:45%;background:var(--blue)"></div></div><span class="pct">2.2→2.0</span></div>
+      <div style="margin-top:20px;padding:12px;background:#f8fafc;border-radius:6px;font-size:0.82rem">
+        <strong>Conditional formatting idea:</strong> green if rate ↓ vs prior month, red if ↑ &gt; 0.5 pp.
+      </div>
+    </div>
+  </div>
+
+  <section class="pages">
+    <h3>Suggested Power BI report pages</h3>
+    <ol>
+      <li><strong>Executive summary</strong> — this layout (KPI cards + trend + category breakdown). Data: KPI_Master.</li>
+      <li><strong>Category deep-dive</strong> — one section per bucket (Storage, QM, Valuation, SNP…) with trend and target line. Data: KPI_Master.</li>
+      <li><strong>Part detail</strong> — table from SNP_Final with all Check_* columns, filters, export. Drill-through from summary.</li>
+      <li><strong>SNP exceptions audit</strong> — Matched DQ rows, remaining SNP errors (sheets from FINAL file).</li>
+    </ol>
+  </section>
+</body>
+</html>
