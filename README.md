@@ -11,6 +11,22 @@ The pipeline:
 
 Everything is driven from a single entry point: `src/Run_KPI.py`.
 
+### Code layout (`src/`)
+
+| Module | Role |
+|--------|------|
+| `Run_KPI.py` | Orchestrator — prompts for run mode, runs each step in order |
+| `Main_SAP_ZMNM_xl.py` / `Main_SAP_ZMMR2199M_xl.py` | SAP GUI extracts |
+| `access-db.py` | Access query logic (q03–q47) — **business rules live here** |
+| `apply_snp_exceptions.py` | SNP exception pass on intermediate output |
+| `generate_kpi_metrics.py` | Dashboard metrics + master file append |
+| `kpi-metrics-manual.py` | On-demand metrics from a chosen FINAL file |
+| `casra_paths.py` | Folder layout under `CASRA_KPI_OUTPUT/` |
+| `casra_dates.py` | `--date-from` / `--date-to` parsing |
+| `casra_constants.py` | Shared column lists (`CHECK_COLUMNS`, DQ columns) |
+| `casra_excel.py` | Shared Excel helpers (read, column lookup, Run Summary) |
+| `casra_config.py` | `config.txt` reader for SAP scripts |
+
 ---
 
 ## How to run

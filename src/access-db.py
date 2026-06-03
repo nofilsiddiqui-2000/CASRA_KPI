@@ -1,64 +1,13 @@
-from pathlib import Path
 import pandas as pd
 
+from casra_constants import CHECK_COLUMNS
 from casra_dates import parse_date_range, yyyymmdd_to_date
-from casra_paths import (
-    LOOKUP_DIR,
-    SAP_DIR,
-    ensure_output_dirs,
-    intermediate_output,
-)
+from casra_excel import coerce_check_columns, find_col, read_excel_access, validate_file
+from casra_paths import LOOKUP_DIR, SAP_DIR, ensure_output_dirs, intermediate_output
 
 
 ZMMR_DIR = SAP_DIR / "ZMMR2199M"
 ZMNM_DIR = SAP_DIR / "ZMNM"
-
-ensure_output_dirs()
-
-
-def validate_file(path: Path, label: str):
-    if not path.exists():
-        raise FileNotFoundError(f"{label} file not found: {path}")
-    return path
-
-
-date_from, date_to = parse_date_range("access-db")
-
-ZMMR_FILE = validate_file(
-    ZMMR_DIR / f"ZMMR2199M_{date_from}.xlsx",
-    "ZMMR2199M"
-)
-
-ZMNM_FILE = validate_file(
-    ZMNM_DIR / f"ZMNM_{date_from}.xlsx",
-    "ZMNM"
-)
-
-RULE_SLOC_FILE = validate_file(LOOKUP_DIR / "RuleSloc.xlsx", "RuleSloc")
-QMAT_MISSING_FILE = validate_file(LOOKUP_DIR / "QMatMissing.xlsx", "QMatMissing")
-QMAT_RULES_FILE = validate_file(LOOKUP_DIR / "QMATRules.xlsx", "QMATRules")
-
-OUTPUT_FILE = intermediate_output(date_from)
-
-
-
-CHECK_COLUMNS = [
-    "Check_SNP",
-    "Check_UofM",
-    "Check_QMAT Extra",
-    "Check_QMAT Missing",
-    "Check_VType Extra",
-    "Check_VType Missing",
-    "Check_VType Error",
-    "Check_SLoc Missing",
-    "Check_SLoc_MRPInd",
-    "Check_Batch",
-    "Check_MOA",
-    "Check_Missing_Model",
-    "Check_Missing_MOA_Class",
-    "Check_Class_Status",
-    "Check_MRPArea",
-]
 
 FINAL_COLUMNS = [
     "SAPInt",
@@ -104,26 +53,6 @@ QUERY31_COLUMNS = {
 }
 
 
-def read_excel(path: Path) -> pd.DataFrame:
-    df = pd.read_excel(path, dtype=str)
-    df.columns = df.columns.astype(str).str.strip()
-    return clean_text_cols(df)
-
-def clean_text_cols(df: pd.DataFrame) -> pd.DataFrame:
-    # following all steps inside access for consistency
-    for col in df.columns:
-        df[col] = df[col].astype("string").replace({"": pd.NA, "nan": pd.NA, "None": pd.NA})
-    return df
-
-def find_col(df: pd.DataFrame, possible_names: list[str]) -> str:
-    lookup = {col.strip().lower(): col for col in df.columns}
-    for name in possible_names:
-        col = lookup.get(name.strip().lower())
-        if col is not None:
-            return col
-    raise KeyError(f"Missing column. Tried: {possible_names}")
-
-
 def norm_access(s: pd.Series) -> pd.Series:
     # Access text comparisons are case-insensitive, but imported values are not auto-trimmed.
     return s.fillna("").astype("string").str.lower()
@@ -165,13 +94,25 @@ def qmat_key(df: pd.DataFrame, mtyp_col: str, itcgr_col: str, plnt_col: str, act
     return df[mtyp_col].fillna("").astype("string") + itcgr_part + df[plnt_col].fillna("").astype("string") + df[actual_col].fillna("").astype("string")
 
 
-def load_context() -> dict:
+def load_context(paths: dict) -> dict:
     return {
-        "zmnm": read_excel(ZMNM_FILE),
-        "week1_raw": read_excel(ZMMR_FILE),
-        "rule_sloc": read_excel(RULE_SLOC_FILE),
-        "qmat_missing": read_excel(QMAT_MISSING_FILE),
-        "qmat_rules": read_excel(QMAT_RULES_FILE),
+        "zmnm": read_excel_access(paths["zmnm"]),
+        "week1_raw": read_excel_access(paths["zmmr"]),
+        "rule_sloc": read_excel_access(paths["rule_sloc"]),
+        "qmat_missing": read_excel_access(paths["qmat_missing"]),
+        "qmat_rules": read_excel_access(paths["qmat_rules"]),
+    }
+
+
+def resolve_input_paths(date_from: str) -> dict:
+    ensure_output_dirs()
+    return {
+        "zmnm": validate_file(ZMNM_DIR / f"ZMNM_{date_from}.xlsx", "ZMNM"),
+        "zmmr": validate_file(ZMMR_DIR / f"ZMMR2199M_{date_from}.xlsx", "ZMMR2199M"),
+        "rule_sloc": validate_file(LOOKUP_DIR / "RuleSloc.xlsx", "RuleSloc"),
+        "qmat_missing": validate_file(LOOKUP_DIR / "QMatMissing.xlsx", "QMatMissing"),
+        "qmat_rules": validate_file(LOOKUP_DIR / "QMATRules.xlsx", "QMATRules"),
+        "output": intermediate_output(date_from),
     }
 
 
@@ -345,15 +286,8 @@ def q19_q46_mrp_area(ctx: dict) -> None:
 
 
 def q47_calculate_errors(ctx: dict) -> None:
-    zmnm = ctx["zmnm"]
-
-    for col in CHECK_COLUMNS:
-        if col not in zmnm.columns:
-            zmnm[col] = 0
-        zmnm[col] = pd.to_numeric(zmnm[col], errors="coerce").fillna(0).astype(int)
-
-    zmnm["Errors"] = zmnm[CHECK_COLUMNS].sum(axis=1)
-    ctx["zmnm"] = zmnm
+    ctx["zmnm"] = coerce_check_columns(ctx["zmnm"], CHECK_COLUMNS)
+    ctx["zmnm"]["Errors"] = ctx["zmnm"][CHECK_COLUMNS].sum(axis=1)
 
 
 def prepare_final_output(ctx: dict) -> pd.DataFrame:
@@ -407,10 +341,11 @@ def count_parts_created(ctx: dict) -> int:
 
 
 def main() -> None:
-    ctx = load_context()
+    date_from, date_to = parse_date_range("access-db")
+    paths = resolve_input_paths(date_from)
 
+    ctx = load_context(paths)
     parts_created = count_parts_created(ctx)
-
     run_pipeline(ctx)
 
     final_output = prepare_final_output(ctx)
@@ -424,14 +359,14 @@ def main() -> None:
         "Rows with Errors (pre-SNP)": rows_with_errors,
     }])
 
-    with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
+    with pd.ExcelWriter(paths["output"], engine="openpyxl") as writer:
         final_output.to_excel(writer, sheet_name="Final Output", index=False)
         run_summary.to_excel(writer, sheet_name="Run Summary", index=False)
 
     print(f"Parts created (ZMMR rows): {parts_created}")
     print(f"Rows exported: {len(final_output)}")
     print(f"Rows with errors: {rows_with_errors}")
-    print(f"Output created: {OUTPUT_FILE}")
+    print(f"Output created: {paths['output']}")
 
 if __name__ == "__main__":
     main()

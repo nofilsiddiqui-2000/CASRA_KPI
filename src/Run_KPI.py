@@ -12,16 +12,17 @@
 # to a shared location that this script can access, and that access-db.py
 # can also access to pull the exported files from.
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 import subprocess
 import sys
 
+from casra_dates import DATE_FORMAT, previous_month_range
 
-BASE_DIR = Path(__file__).parent  # __file__ is the path to this script, so parent is the directory containing it.
 
+BASE_DIR = Path(__file__).parent
 
-SCRIPTS = [
+PIPELINE_SCRIPTS = [
     "Main_SAP_ZMNM_xl.py",
     "Main_SAP_ZMMR2199M_xl.py",
     "access-db.py",
@@ -30,21 +31,11 @@ SCRIPTS = [
 ]
 
 
-def previous_month_range() -> tuple[str, str]:
-    first_of_this_month = datetime.today().date().replace(day=1)
-    last_of_prev_month = first_of_this_month - timedelta(days=1)
-    first_of_prev_month = last_of_prev_month.replace(day=1)
-    return (
-        first_of_prev_month.strftime("%Y%m%d"),
-        last_of_prev_month.strftime("%Y%m%d"),
-    )
-
-
 def prompt_yyyymmdd(prompt: str) -> str:
     while True:
         value = input(prompt).strip()
         try:
-            datetime.strptime(value, "%Y%m%d")
+            datetime.strptime(value, DATE_FORMAT)
             return value
         except ValueError:
             print("  Invalid date. Use YYYYMMDD format (e.g. 20260330).")
@@ -100,7 +91,7 @@ def run_script(script_name: str, date_from: str, date_to: str) -> None:
 def main() -> None:
     date_from, date_to = select_mode()
 
-    for script in SCRIPTS:
+    for script in PIPELINE_SCRIPTS:
         run_script(script, date_from, date_to)
 
     print("\nDone. SAP exports, KPI output, SNP exceptions, and KPI metrics completed successfully.")

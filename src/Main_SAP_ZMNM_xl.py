@@ -2,27 +2,8 @@ from datetime import datetime, timedelta
 import os, time
 import win32com.client
 
+from casra_config import read_config
 from casra_dates import parse_date_range
-
-# from Utilities import SharePointAPI
-# from Utilities import AzureAPI
-
-def read_config():
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.txt")
-    config_data = {}
-    with open(config_path, "r", encoding="utf-8") as file:
-        for line in file:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "==" in line:
-                key, value = line.split("==", 1)
-            elif "=" in line:
-                key, value = line.split("=", 1)
-            else:
-                continue
-            config_data[key.strip()] = value.strip().strip('"').strip("'")
-    return config_data
 
 def convert_txt_to_xlsx(txt_path, xlsx_path):
     excel = None
