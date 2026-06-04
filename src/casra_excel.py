@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
-from casra_constants import DQ_DATE_COLUMNS, DQ_PART_COLUMNS
+from casra_constants import DQ_DATE_COLUMNS, DQ_PART_COLUMNS, REPORT_DATE_COL
 from casra_dates import yyyymmdd_to_date
 
 
@@ -46,6 +47,15 @@ def read_excel_access(path: Path) -> pd.DataFrame:
 def read_excel_table(path: Path, dtype=object) -> pd.DataFrame:
     df = pd.read_excel(path, dtype=dtype)
     df.columns = [normalize_header(c) for c in df.columns]
+    return df
+
+
+def add_report_date_column(df: pd.DataFrame, report_date: date | None = None) -> pd.DataFrame:
+    """Insert Report Date as the first column on a detail output sheet."""
+    df = df.copy()
+    if REPORT_DATE_COL in df.columns:
+        df = df.drop(columns=[REPORT_DATE_COL])
+    df.insert(0, REPORT_DATE_COL, report_date or date.today())
     return df
 
 

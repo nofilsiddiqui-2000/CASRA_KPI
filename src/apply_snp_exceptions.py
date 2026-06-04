@@ -3,6 +3,7 @@ import pandas as pd
 from casra_constants import CHECK_COLUMNS, DQ_AUDIT_COLUMNS, DQ_DATE_COLUMNS, DQ_PART_COLUMNS
 from casra_dates import parse_date_range
 from casra_excel import (
+    add_report_date_column,
     coerce_check_columns,
     find_col,
     read_data_quality_file,
@@ -144,6 +145,8 @@ def main() -> None:
         "Check_SNP errors after": after_snp,
         "Rows with Errors (post-SNP)": int((final_df["Errors"] > 0).sum()),
     })
+
+    final_df = add_report_date_column(final_df)
 
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
         final_df.to_excel(writer, sheet_name="Final Output", index=False)

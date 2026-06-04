@@ -8,7 +8,7 @@ from datetime import date
 
 import pandas as pd
 
-from casra_constants import PARTS_CREATED_COL
+from casra_constants import PARTS_CREATED_COL, REPORT_DATE_COL
 from casra_dates import parse_date_range, yyyymmdd_to_date
 from casra_excel import validate_file
 from casra_paths import (
@@ -20,10 +20,10 @@ from casra_paths import (
     resolve_snp_final_output,
 )
 
-DATE_COLUMNS = ("Report Date", "Date From", "Date To")
+DATE_COLUMNS = (REPORT_DATE_COL, "Date From", "Date To")
 
 METRIC_COLUMNS = [
-    "Report Date",
+    REPORT_DATE_COL,
     "Date From",
     "Date To",
     "Parts Created",
@@ -95,7 +95,7 @@ def compute_metrics(
         return sum_check(final_df, col_name) / parts_created
 
     metrics: dict = {
-        "Report Date": date.today(),
+        REPORT_DATE_COL: date.today(),
         "Date From": yyyymmdd_to_date(date_from) or pd.NaT,
         "Date To": yyyymmdd_to_date(date_to) or pd.NaT,
         "Parts Created": parts_created,

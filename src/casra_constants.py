@@ -20,6 +20,7 @@ CHECK_COLUMNS = [
 ]
 
 PARTS_CREATED_COL = "Parts Created (ZMMR rows)"
+REPORT_DATE_COL = "Report Date"
 
 # Data Quality workbook — column names vary by monthly download.
 DQ_DATE_COLUMNS = [
