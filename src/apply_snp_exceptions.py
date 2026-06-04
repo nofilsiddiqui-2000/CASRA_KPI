@@ -1,12 +1,15 @@
+from datetime import date
+
 import pandas as pd
 
-from casra_constants import CHECK_COLUMNS, DQ_AUDIT_COLUMNS, DQ_DATE_COLUMNS, DQ_PART_COLUMNS
+from casra_constants import CHECK_COLUMNS, DQ_AUDIT_COLUMNS, DQ_DATE_COLUMNS, DQ_PART_COLUMNS, REPORT_DATE_COL
 from casra_dates import parse_date_range
 from casra_excel import (
     coerce_check_columns,
     find_col,
     read_data_quality_file,
     read_excel_table,
+    order_run_summary,
     read_run_summary,
     validate_file,
 )
@@ -139,11 +142,13 @@ def main() -> None:
     before_snp = int(access_df["Check_SNP"].sum())
     after_snp = int(final_df["Check_SNP"].sum())
     run_summary = update_run_summary(run_summary, {
+        REPORT_DATE_COL: date.today(),
         "Check_SNP errors before": before_snp,
         "Check_SNP exceptions applied": before_snp - after_snp,
         "Check_SNP errors after": after_snp,
         "Rows with Errors (post-SNP)": int((final_df["Errors"] > 0).sum()),
     })
+    run_summary = order_run_summary(run_summary)
 
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
         final_df.to_excel(writer, sheet_name="Final Output", index=False)

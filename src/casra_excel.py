@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from casra_constants import DQ_DATE_COLUMNS, DQ_PART_COLUMNS
+from casra_constants import DQ_DATE_COLUMNS, DQ_PART_COLUMNS, REPORT_DATE_COL
 from casra_dates import yyyymmdd_to_date
 
 
@@ -47,6 +47,18 @@ def read_excel_table(path: Path, dtype=object) -> pd.DataFrame:
     df = pd.read_excel(path, dtype=dtype)
     df.columns = [normalize_header(c) for c in df.columns]
     return df
+
+
+RUN_SUMMARY_LEADING_COLUMNS = [REPORT_DATE_COL, "Date From", "Date To"]
+
+
+def order_run_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Put run metadata columns first for easier review."""
+    if df.empty:
+        return df
+    leading = [c for c in RUN_SUMMARY_LEADING_COLUMNS if c in df.columns]
+    rest = [c for c in df.columns if c not in leading]
+    return df[leading + rest]
 
 
 def read_run_summary(path: Path) -> pd.DataFrame:
