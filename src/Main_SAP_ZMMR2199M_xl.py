@@ -208,10 +208,6 @@ if automation_status == "On":
                 # save_rows_to_xlsx(headers, rows, xlsx_file_path)
 
                 headers, rows = parse_zmmr2199m_txt(txt_file_path)
-
-                mtyp_index = [h.strip().replace(" ", "").lower() for h in headers].index("mtyp")
-                rows = [row for row in rows if row[mtyp_index].strip().upper() == "HALB"]
-
                 save_rows_to_xlsx(headers, rows, xlsx_file_path)
 
                 if not os.path.exists(xlsx_file_path) or os.path.getsize(xlsx_file_path) == 0:
