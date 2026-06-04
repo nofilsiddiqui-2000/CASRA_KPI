@@ -1,10 +1,8 @@
-from datetime import date
-
 import pandas as pd
 
-from casra_constants import CHECK_COLUMNS, REPORT_DATE_COL
+from casra_constants import CHECK_COLUMNS
 from casra_dates import parse_date_range, yyyymmdd_to_date
-from casra_excel import coerce_check_columns, find_col, read_excel_access, validate_file
+from casra_excel import add_report_date_column, coerce_check_columns, find_col, read_excel_access, validate_file
 from casra_paths import LOOKUP_DIR, SAP_DIR, ensure_output_dirs, intermediate_output
 
 
@@ -351,10 +349,10 @@ def main() -> None:
     run_pipeline(ctx)
 
     final_output = prepare_final_output(ctx)
+    final_output = add_report_date_column(final_output)
     rows_with_errors = int((final_output["Errors"] > 0).sum())
 
     run_summary = pd.DataFrame([{
-        REPORT_DATE_COL: date.today(),
         "Date From": yyyymmdd_to_date(date_from),
         "Date To": yyyymmdd_to_date(date_to),
         "Parts Created (ZMMR rows)": parts_created,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -49,16 +50,13 @@ def read_excel_table(path: Path, dtype=object) -> pd.DataFrame:
     return df
 
 
-RUN_SUMMARY_LEADING_COLUMNS = [REPORT_DATE_COL, "Date From", "Date To"]
-
-
-def order_run_summary(df: pd.DataFrame) -> pd.DataFrame:
-    """Put run metadata columns first for easier review."""
-    if df.empty:
-        return df
-    leading = [c for c in RUN_SUMMARY_LEADING_COLUMNS if c in df.columns]
-    rest = [c for c in df.columns if c not in leading]
-    return df[leading + rest]
+def add_report_date_column(df: pd.DataFrame, report_date: date | None = None) -> pd.DataFrame:
+    """Insert Report Date as the first column on a detail output sheet."""
+    df = df.copy()
+    if REPORT_DATE_COL in df.columns:
+        df = df.drop(columns=[REPORT_DATE_COL])
+    df.insert(0, REPORT_DATE_COL, report_date or date.today())
+    return df
 
 
 def read_run_summary(path: Path) -> pd.DataFrame:
