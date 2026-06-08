@@ -1,6 +1,6 @@
 """Build the CASRA KPI metrics summary used for the Power BI dashboard.
 
-Reads SNP_Final/CASRA_KPI_OUTPUT_<date>_FINAL.xlsx, writes per-run metrics
+Reads SNP_Final/CASRA_KPI_OUTPUT_<date_from>_<date_to>_FINAL.xlsx, writes per-run metrics
 and appends to KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx.
 """
 
@@ -148,8 +148,8 @@ def main() -> None:
     date_from, date_to = parse_date_range("generate_kpi_metrics")
     ensure_output_dirs()
 
-    final_xlsx = resolve_snp_final_output(date_from)
-    per_run_path = kpi_metrics_output(date_from)
+    final_xlsx = resolve_snp_final_output(date_from, date_to)
+    per_run_path = kpi_metrics_output(date_from, date_to)
     master_path = kpi_master_output()
 
     validate_file(final_xlsx, "FINAL output")
