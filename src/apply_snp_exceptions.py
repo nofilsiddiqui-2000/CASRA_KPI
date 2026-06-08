@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 
 from casra_constants import CHECK_COLUMNS, DQ_AUDIT_COLUMNS, DQ_DATE_COLUMNS, DQ_PART_COLUMNS
@@ -117,21 +119,14 @@ def update_run_summary(run_summary: pd.DataFrame, snp_stats: dict) -> pd.DataFra
     return run_summary
 
 
-def main() -> None:
-    date_from, _ = parse_date_range("apply_snp_exceptions")
-    ensure_output_dirs()
-
-    access_file = validate_file(
-        resolve_intermediate_output(date_from),
-        "Access output (Intermediate/ or legacy CASRA_KPI_OUTPUT root)",
-    )
-    dq_file = validate_file(DATAQUALITY_FILE, "Data Quality file")
-    output_file = snp_final_output(date_from)
-
-    access_df = read_excel_table(access_file)
+def run_snp_pass(
+    access_df: pd.DataFrame,
+    run_summary: pd.DataFrame,
+    dq_file: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    dq_file = validate_file(dq_file, "Data Quality file")
     print(f"  Reading Data Quality file: {dq_file.name}")
     dq_df = read_data_quality_file(dq_file)
-    run_summary = read_run_summary(access_file)
 
     final_df, snp_audit, matched_dq_rows, remaining_snp_errors, dq_keys_df = apply_snp_exceptions(
         access_df, dq_df
@@ -147,6 +142,25 @@ def main() -> None:
     })
 
     final_df = add_report_date_column(final_df)
+    return final_df, run_summary, snp_audit, matched_dq_rows, remaining_snp_errors, dq_keys_df
+
+
+def main() -> None:
+    date_from, date_to = parse_date_range("apply_snp_exceptions")
+    ensure_output_dirs()
+
+    access_file = validate_file(
+        resolve_intermediate_output(date_from, date_to),
+        "Access output (Intermediate/ or legacy CASRA_KPI_OUTPUT root)",
+    )
+    output_file = snp_final_output(date_from, date_to)
+
+    access_df = read_excel_table(access_file)
+    run_summary = read_run_summary(access_file)
+
+    final_df, run_summary, snp_audit, matched_dq_rows, remaining_snp_errors, dq_keys_df = run_snp_pass(
+        access_df, run_summary, DATAQUALITY_FILE
+    )
 
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
         final_df.to_excel(writer, sheet_name="Final Output", index=False)
@@ -157,7 +171,7 @@ def main() -> None:
         dq_keys_df.to_excel(writer, sheet_name="DQ Exception Keys", index=False)
 
     print(f"Input file: {access_file}")
-    print(f"Data Quality file: {dq_file}")
+    print(f"Data Quality file: {DATAQUALITY_FILE}")
     print("\nRun Summary:")
     if not run_summary.empty:
         for col in run_summary.columns:

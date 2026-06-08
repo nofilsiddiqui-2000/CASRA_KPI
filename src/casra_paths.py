@@ -69,38 +69,51 @@ def mirror_to_sharepoint(local_file: Path, sharepoint_dir: Path) -> Path:
     return destination
 
 
-def intermediate_output(date_from: str) -> Path:
-    return INTERMEDIATE_DIR / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
+def output_period_suffix(date_from: str, date_to: str) -> str:
+    return f"{date_from}_{date_to}"
 
 
-def snp_final_output(date_from: str) -> Path:
-    return SNP_FINAL_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
+def intermediate_output(date_from: str, date_to: str) -> Path:
+    suffix = output_period_suffix(date_from, date_to)
+    return INTERMEDIATE_DIR / f"CASRA_KPI_OUTPUT_{suffix}.xlsx"
 
 
-def resolve_intermediate_output(date_from: str) -> Path:
-    """Prefer Intermediate/; fall back to legacy flat CASRA_KPI_OUTPUT root."""
-    current = intermediate_output(date_from)
+def snp_final_output(date_from: str, date_to: str) -> Path:
+    suffix = output_period_suffix(date_from, date_to)
+    return SNP_FINAL_DIR / f"CASRA_KPI_OUTPUT_{suffix}_FINAL.xlsx"
+
+
+def resolve_intermediate_output(date_from: str, date_to: str) -> Path:
+    """Prefer Intermediate/; fall back to legacy single-date filenames."""
+    current = intermediate_output(date_from, date_to)
     if current.exists():
         return current
-    legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
+    legacy = INTERMEDIATE_DIR / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
     if legacy.exists():
         return legacy
+    flat_legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
+    if flat_legacy.exists():
+        return flat_legacy
     return current
 
 
-def resolve_snp_final_output(date_from: str) -> Path:
-    """Prefer SNP_Final/; fall back to legacy flat CASRA_KPI_OUTPUT root."""
-    current = snp_final_output(date_from)
+def resolve_snp_final_output(date_from: str, date_to: str) -> Path:
+    """Prefer SNP_Final/; fall back to legacy single-date filenames."""
+    current = snp_final_output(date_from, date_to)
     if current.exists():
         return current
-    legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
+    legacy = SNP_FINAL_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
     if legacy.exists():
         return legacy
+    flat_legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
+    if flat_legacy.exists():
+        return flat_legacy
     return current
 
 
-def kpi_metrics_output(date_from: str) -> Path:
-    return KPI_METRICS_DIR / f"CASRA_KPI_METRICS_{date_from}.xlsx"
+def kpi_metrics_output(date_from: str, date_to: str) -> Path:
+    suffix = output_period_suffix(date_from, date_to)
+    return KPI_METRICS_DIR / f"CASRA_KPI_METRICS_{suffix}.xlsx"
 
 
 def kpi_master_output() -> Path:

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 
 from casra_constants import CHECK_COLUMNS
@@ -104,16 +106,24 @@ def load_context(paths: dict) -> dict:
     }
 
 
-def resolve_input_paths(date_from: str) -> dict:
+def build_paths_from_files(zmnm: Path, zmmr: Path) -> dict:
     ensure_output_dirs()
     return {
-        "zmnm": validate_file(ZMNM_DIR / f"ZMNM_{date_from}.xlsx", "ZMNM"),
-        "zmmr": validate_file(ZMMR_DIR / f"ZMMR2199M_{date_from}.xlsx", "ZMMR2199M"),
+        "zmnm": validate_file(zmnm, "ZMNM"),
+        "zmmr": validate_file(zmmr, "ZMMR2199M"),
         "rule_sloc": validate_file(LOOKUP_DIR / "RuleSloc.xlsx", "RuleSloc"),
         "qmat_missing": validate_file(LOOKUP_DIR / "QMatMissing.xlsx", "QMatMissing"),
         "qmat_rules": validate_file(LOOKUP_DIR / "QMATRules.xlsx", "QMATRules"),
-        "output": intermediate_output(date_from),
     }
+
+
+def resolve_input_paths(date_from: str, date_to: str) -> dict:
+    paths = build_paths_from_files(
+        ZMNM_DIR / f"ZMNM_{date_from}.xlsx",
+        ZMMR_DIR / f"ZMMR2199M_{date_from}.xlsx",
+    )
+    paths["output"] = intermediate_output(date_from, date_to)
+    return paths
 
 
 def set_pipeline_columns(ctx: dict) -> None:
@@ -340,10 +350,12 @@ def count_parts_created(ctx: dict) -> int:
     return int(week1_raw[material_col].notna().sum())
 
 
-def main() -> None:
-    date_from, date_to = parse_date_range("access-db")
-    paths = resolve_input_paths(date_from)
-
+def run_kpi_build(
+    paths: dict,
+    *,
+    date_from: str = "",
+    date_to: str = "",
+) -> tuple[pd.DataFrame, pd.DataFrame, int]:
     ctx = load_context(paths)
     parts_created = count_parts_created(ctx)
     run_pipeline(ctx)
@@ -352,13 +364,25 @@ def main() -> None:
     final_output = add_report_date_column(final_output)
     rows_with_errors = int((final_output["Errors"] > 0).sum())
 
-    run_summary = pd.DataFrame([{
-        "Date From": yyyymmdd_to_date(date_from),
-        "Date To": yyyymmdd_to_date(date_to),
+    summary_row = {
         "Parts Created (ZMMR rows)": parts_created,
         "Rows in Output": len(final_output),
         "Rows with Errors (pre-SNP)": rows_with_errors,
-    }])
+    }
+    if date_from or date_to:
+        summary_row["Date From"] = yyyymmdd_to_date(date_from) if date_from else pd.NaT
+        summary_row["Date To"] = yyyymmdd_to_date(date_to) if date_to else pd.NaT
+
+    return final_output, pd.DataFrame([summary_row]), parts_created
+
+
+def main() -> None:
+    date_from, date_to = parse_date_range("access-db")
+    paths = resolve_input_paths(date_from, date_to)
+    final_output, run_summary, parts_created = run_kpi_build(
+        paths, date_from=date_from, date_to=date_to
+    )
+    rows_with_errors = int(run_summary["Rows with Errors (pre-SNP)"].iloc[0])
 
     with pd.ExcelWriter(paths["output"], engine="openpyxl") as writer:
         final_output.to_excel(writer, sheet_name="Final Output", index=False)
