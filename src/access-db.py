@@ -14,6 +14,7 @@ ZMNM_DIR = SAP_DIR / "ZMNM"
 FINAL_COLUMNS = [
     "SAPInt",
     "Material Number",
+    "Description",
     "Created on",
     "Created",
     "Full Name",
@@ -96,9 +97,23 @@ def qmat_key(df: pd.DataFrame, mtyp_col: str, itcgr_col: str, plnt_col: str, act
     return df[mtyp_col].fillna("").astype("string") + itcgr_part + df[plnt_col].fillna("").astype("string") + df[actual_col].fillna("").astype("string")
 
 
+def ensure_description_column(zmnm: pd.DataFrame) -> pd.DataFrame:
+    if "Description" in zmnm.columns:
+        return zmnm
+    try:
+        source_col = find_col(zmnm, ["Material Description"], "Description")
+    except KeyError:
+        return zmnm
+    zmnm = zmnm.copy()
+    zmnm["Description"] = zmnm[source_col]
+    return zmnm
+
+
 def load_context(paths: dict) -> dict:
+    zmnm = read_excel_access(paths["zmnm"])
+    zmnm = ensure_description_column(zmnm)
     return {
-        "zmnm": read_excel_access(paths["zmnm"]),
+        "zmnm": zmnm,
         "week1_raw": read_excel_access(paths["zmmr"]),
         "rule_sloc": read_excel_access(paths["rule_sloc"]),
         "qmat_missing": read_excel_access(paths["qmat_missing"]),

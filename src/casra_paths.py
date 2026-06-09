@@ -29,6 +29,9 @@ KPI_METRICS_DIR = OUTPUT_ROOT / "KPI_Metrics"
 # kpi-metrics-manual.py — on-demand metrics (does not update master)
 KPI_METRICS_MANUAL_DIR = OUTPUT_ROOT / "KPI_Metrics_Manual"
 
+# generate_hazmat_kpi.py — standalone HazMat KPI (not yet in Run_KPI pipeline)
+HAZMAT_KPI_DIR = OUTPUT_ROOT / "HazMat_KPI"
+
 # generate_kpi_metrics.py — accumulating history for Power BI
 KPI_MASTER_DIR = OUTPUT_ROOT / "KPI_Master"
 
@@ -51,6 +54,7 @@ def ensure_output_dirs() -> None:
         SNP_FINAL_DIR,
         KPI_METRICS_DIR,
         KPI_METRICS_MANUAL_DIR,
+        HAZMAT_KPI_DIR,
         KPI_MASTER_DIR,
         SHAREPOINT_SNP_FINAL_DIR,
         SHAREPOINT_KPI_MASTER_DIR,
@@ -122,3 +126,7 @@ def kpi_master_output() -> Path:
 
 def kpi_metrics_manual_output(run_date: str) -> Path:
     return KPI_METRICS_MANUAL_DIR / f"CASRA_KPI_METRICS_MANUAL_{run_date}.xlsx"
+
+
+def hazmat_kpi_output(run_date: str) -> Path:
+    return HAZMAT_KPI_DIR / f"CASRA_HAZMAT_KPI_{run_date}.xlsx"
