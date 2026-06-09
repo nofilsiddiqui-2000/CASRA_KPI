@@ -54,7 +54,7 @@ You choose the reporting period when you start the run:
 
 - Pulls **change/detail records** for the same date range.
 - Each row describes something that was checked or changed for a part (which SAP field, which report type, actual value, plant, material type, etc.).
-- Only **HALB** material type rows are kept in the extract used for KPIs.
+- The SAP extract does **not** filter by material type; all rows returned by your ZMMR selection are kept. Some **access-db** checks (e.g. valuation type) apply rules only when **MTyp** is HALB or non-HALB on each row.
 - The same part can appear on **many rows** in ZMMR (one row per field/report combination). Those rows are used only to **detect issues** on each part — not to count how many parts were created.
 
 ---
