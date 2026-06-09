@@ -82,7 +82,7 @@ def main() -> None:
 
     print(f"ZMNM file:              {zmnm_path}")
     print(f"ZMMR file:              {zmmr_path}")
-    print(f"Parts created (ZMMR):   {parts_created}")
+    print(f"Parts created (ZMNM):   {parts_created}")
     print(f"Rows in output:           {len(access_output)}")
 
     final_df, run_summary, snp_audit, matched_dq_rows, remaining_snp_errors, dq_keys_df = run_snp_pass(

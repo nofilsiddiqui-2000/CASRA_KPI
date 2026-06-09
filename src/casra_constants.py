@@ -19,7 +19,7 @@ CHECK_COLUMNS = [
     "Check_MRPArea",
 ]
 
-PARTS_CREATED_COL = "Parts Created (ZMMR rows)"
+PARTS_CREATED_COL = "Parts Created (ZMNM rows)"
 REPORT_DATE_COL = "Report Date"
 
 # Data Quality workbook — column names vary by monthly download.

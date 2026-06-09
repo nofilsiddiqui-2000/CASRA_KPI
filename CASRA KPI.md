@@ -55,7 +55,7 @@ You choose the reporting period when you start the run:
 - Pulls **change/detail records** for the same date range.
 - Each row describes something that was checked or changed for a part (which SAP field, which report type, actual value, plant, material type, etc.).
 - Only **HALB** material type rows are kept in the extract used for KPIs.
-- The same part can appear on **many rows** in ZMMR (one row per field/report combination). That is why “Parts Created” counts ZMMR rows with a material number, not unique part numbers — it matches the legacy Access behaviour.
+- The same part can appear on **many rows** in ZMMR (one row per field/report combination). Those rows are used only to **detect issues** on each part — not to count how many parts were created.
 
 ---
 
@@ -113,7 +113,7 @@ Only parts with **SAPInt** populated are exported (parts tied to the integration
 
 ### Parts Created (Run Summary)
 
-Counted from ZMMR: number of rows with a **Material Number** filled in. This is the denominator for dashboard percentages (“X parts were created this period”).
+Counted from **ZMNM**: number of rows with a **Material Number** filled in (simple row count from the ZMNM extract). This is the denominator for dashboard percentages (“X parts were created this period”).
 
 ---
 
@@ -155,7 +155,7 @@ The metrics file does **not** list every part. It produces **one summary row per
 |--------|----------------------|
 | **Report Date** | Date the automation was run |
 | **Date From / Date To** | The SAP period you selected |
-| **Parts Created** | ZMMR parts-created row count (same as Run Summary) |
+| **Parts Created** | ZMNM row count with Material Number filled in (same as Run Summary) |
 | **Storage Location** | % of parts flagged for SLoc Missing + % flagged for SLoc MRP indicator |
 | **QM Insp Type** | % QMAT Extra + % QMAT Missing |
 | **Valuation Type** | % VType Extra + % VType Missing + % VType Error |

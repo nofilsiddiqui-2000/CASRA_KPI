@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from casra_constants import CHECK_COLUMNS
+from casra_constants import CHECK_COLUMNS, PARTS_CREATED_COL
 from casra_dates import parse_date_range, yyyymmdd_to_date
 from casra_excel import add_report_date_column, coerce_check_columns, find_col, read_excel_access, validate_file
 from casra_paths import LOOKUP_DIR, SAP_DIR, ensure_output_dirs, intermediate_output
@@ -342,12 +342,10 @@ def run_pipeline(ctx: dict) -> None:
 
 
 def count_parts_created(ctx: dict) -> int:
-    # Raw row count of populated Material Number cells in the ZMMR extract.
-    # User-facing KPI: "X parts were created". Duplicates are kept on purpose
-    # (one part may appear multiple times, once per check field in ZMMR).
-    week1_raw = ctx["week1_raw"]
-    material_col = find_col(week1_raw, ["Material Number"])
-    return int(week1_raw[material_col].notna().sum())
+    # Row count of populated Material Number cells in the ZMNM extract.
+    zmnm = ctx["zmnm"]
+    material_col = find_col(zmnm, ["Material Number"])
+    return int(zmnm[material_col].notna().sum())
 
 
 def run_kpi_build(
@@ -365,7 +363,7 @@ def run_kpi_build(
     rows_with_errors = int((final_output["Errors"] > 0).sum())
 
     summary_row = {
-        "Parts Created (ZMMR rows)": parts_created,
+        PARTS_CREATED_COL: parts_created,
         "Rows in Output": len(final_output),
         "Rows with Errors (pre-SNP)": rows_with_errors,
     }
@@ -388,7 +386,7 @@ def main() -> None:
         final_output.to_excel(writer, sheet_name="Final Output", index=False)
         run_summary.to_excel(writer, sheet_name="Run Summary", index=False)
 
-    print(f"Parts created (ZMMR rows): {parts_created}")
+    print(f"Parts created (ZMNM rows): {parts_created}")
     print(f"Rows exported: {len(final_output)}")
     print(f"Rows with errors: {rows_with_errors}")
     print(f"Output created: {paths['output']}")
