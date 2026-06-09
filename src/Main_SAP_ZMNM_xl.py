@@ -130,6 +130,7 @@ if automation_status == "On":
             session.findById("wnd[0]/usr/ctxtSO_ERSDA-LOW").caretPosition = 0
             session.findById("wnd[0]").sendVKey(4)
             session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").focusDate = date_from
+            session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").firstVisibleDate = date_from
             session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").selectionInterval = f"{date_from},{date_from}"
 
             # high date
@@ -144,7 +145,6 @@ if automation_status == "On":
             session.findById("wnd[0]/usr/txtSO_ERNAM-LOW").caretPosition = 0
             session.findById("wnd[0]/usr/btn%_SO_ERNAM_%_APP_%-VALU_PUSH").press()
 
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE").columns.elementAt(1).width = 12
             session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,0]").text = "B0516399"
             session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,1]").text = "B0466709"
             session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,2]").text = "B0536466"
@@ -155,13 +155,17 @@ if automation_status == "On":
             session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,7]").text = "B0075972"
             session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,7]").setFocus()
             session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,7]").caretPosition = 9
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE").verticalScrollbar.position = 7
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,1]").text = "B0737251"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,1]").setFocus()
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,1]").caretPosition = 9
-            session.findById("wnd[1]").sendVKey(0)
-            session.findById("wnd[1]/tbar[0]/btn[0]").press()
+            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE").verticalScrollbar.position = 1
+            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE").verticalScrollbar.position = 2
+            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,6]").text = "B0737251"
+            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,6]").setFocus()
+            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,6]").caretPosition = 8
             session.findById("wnd[1]/tbar[0]/btn[8]").press()
+
+            # plant filter
+            session.findById("wnd[0]/usr/ctxtSO_WERKS-LOW").text = "3099"
+            session.findById("wnd[0]/usr/ctxtSO_WERKS-LOW").setFocus()
+            session.findById("wnd[0]/usr/ctxtSO_WERKS-LOW").caretPosition = 4
 
             # execute
             session.findById("wnd[0]/tbar[1]/btn[8]").press()
