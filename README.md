@@ -16,7 +16,7 @@ Automation for the CASRA Material Master KPI report.
 | `Main_SAP_ZMNM_xl.py` / `Main_SAP_ZMMR2199M_xl.py` | SAP GUI extracts |
 | `access-db.py` | KPI build (Access q03–q47 logic) |
 | `apply_snp_exceptions.py` | SNP exception pass |
-| `generate_hazmat_kpi.py` | HazMat pass — sets Check_Hazards from ZMNM, backfills Created on/Created |
+| `generate_hazmat_kpi.py` | HazMat pass — appends ZMNM HAZ rows with Check_Hazards = 1 |
 | `generate_kpi_metrics.py` | Dashboard metrics + master append |
 | `kpi-metrics-manual.py` | On-demand metrics from user-supplied ZMNM/ZMMR/DQ files (no HazMat pass; no KPI Master update) |
 | `casra_paths.py` | Local output folders + SharePoint sync paths |

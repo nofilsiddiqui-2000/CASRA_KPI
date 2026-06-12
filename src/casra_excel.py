@@ -22,6 +22,27 @@ def normalize_header(value) -> str:
     return " ".join(text.strip().split())
 
 
+def normalize_material_key(value) -> str:
+    """Stable part-number key for matching ZMNM, Final Output, and DQ files."""
+    if pd.isna(value):
+        return ""
+    if isinstance(value, bool):
+        return str(value).strip().upper()
+    if isinstance(value, int):
+        return str(value).upper()
+    if isinstance(value, float):
+        if value == int(value):
+            return str(int(value))
+        text = str(value).strip()
+    else:
+        text = str(value).replace("\u00a0", " ").strip()
+    if text.endswith(".0"):
+        head = text[:-2]
+        if head.isdigit() or (head.startswith("-") and head[1:].isdigit()):
+            text = head
+    return text.upper()
+
+
 def find_col(df: pd.DataFrame, possible_names: list[str], label: str | None = None) -> str:
     lookup = {normalize_header(col).lower(): col for col in df.columns}
     for name in possible_names:

@@ -158,17 +158,27 @@ The **FINAL** detail file (used for Power BI part-level analysis) includes audit
 
 After SNP exceptions, the process reads the **ZMNM** extract again and looks at the **HazMat indicator** column.
 
-### How HAZ parts are flagged
+### Why HAZ parts are appended (not matched)
 
-- For each part already in **Final Output**, if **Material Number** matches a ZMNM row with **HazMat indicator = HAZ** → **Check_Hazards = 1** on that same row (not a separate row).
-- **Created on** and **Created** are filled from ZMNM (**Created On** / **Created By**) when the HazMat flag is applied.
-- **Errors** is recalculated to include **Check_Hazards** (same as after any other check change).
+**Final Output** is built from ZMNM rows that have **SAPInt** populated — often filled from **ZMMR** via the q31 merge. HAZ parts usually exist only on the raw **ZMNM** extract (no SAPInt, not in ZMMR), so they are **not** in Final Output before this step.
+
+The HazMat pass **appends** each HAZ ZMNM part as a new row (it does not search ZMMR rows for a match).
+
+### What is appended
+
+For each ZMNM row with **HazMat indicator = HAZ**, unless that **Material Number** already has **Check_Hazards = 1** in Final Output:
+
+- A new row is appended with **Check_Hazards = 1**, all other **Check_*** = **0**, **Errors = 1**
+- **Material Number**, **Created on** (from ZMNM **Created On**), **Created** (from ZMNM **Created By**), **Description**, and other attribute columns are copied from ZMNM where column names match
+
+A part may appear twice in Final Output — once from the normal KPI build (ZMMR/other checks) and once as the appended HAZ row from ZMNM.
 
 ### Run Summary (HazMat)
 
 | Field | Meaning |
 |-------|---------|
-| **Check_Hazards errors** | Number of parts in Final Output with **Check_Hazards = 1** |
+| **Check_Hazards errors** | Number of rows in Final Output with **Check_Hazards = 1** |
+| **HAZ rows appended** | HAZ parts added to Final Output because they were not already present |
 | **Rows with Errors (post-HAZ)** | Parts with **Errors > 0** after the HazMat pass |
 
 A debug workbook is also written to **HazMat_KPI/** (`CASRA_HAZMAT_KPI_<run date>.xlsx`) listing the HAZ parts from ZMNM and a summary.
