@@ -8,7 +8,7 @@ from datetime import date
 
 import pandas as pd
 
-from casra_constants import HAZ_PARTS_COL, PARTS_CREATED_COL, REPORT_DATE_COL
+from casra_constants import PARTS_CREATED_COL, REPORT_DATE_COL
 from casra_dates import parse_date_range, yyyymmdd_to_date
 from casra_excel import validate_file
 from casra_paths import (
@@ -48,6 +48,7 @@ METRIC_CHECK_GROUPS: dict[str, list[str]] = {
     "Serialized Profile": ["Check_SNP"],
     "Class MOA": ["Check_MOA", "Check_Missing_Model", "Check_Missing_MOA_Class"],
     "Unit of Measure": ["Check_UofM"],
+    "Hazmat": ["Check_Hazards"],
     "MRP Area": ["Check_MRPArea"],
 }
 
@@ -80,20 +81,9 @@ def get_parts_created(final_xlsx) -> int:
     return int(run_summary[PARTS_CREATED_COL].iloc[0])
 
 
-def get_haz_parts(final_xlsx) -> int:
-    run_summary = pd.read_excel(final_xlsx, sheet_name="Run Summary", dtype=object)
-    if run_summary.empty or HAZ_PARTS_COL not in run_summary.columns:
-        raise RuntimeError(
-            f"Run Summary in {final_xlsx} is missing '{HAZ_PARTS_COL}'. "
-            "Run generate_hazmat_kpi.py first."
-        )
-    return int(run_summary[HAZ_PARTS_COL].iloc[0])
-
-
 def compute_metrics(
     final_df: pd.DataFrame,
     parts_created: int,
-    haz_parts: int,
     date_from: str = "",
     date_to: str = "",
 ) -> dict:
@@ -115,8 +105,7 @@ def compute_metrics(
     for metric_name, check_cols in METRIC_CHECK_GROUPS.items():
         metrics[metric_name] = sum(pct(col) for col in check_cols)
 
-    metrics["Hazmat"] = haz_parts / parts_created
-    metrics["Total %"] = sum(metrics[name] for name in METRIC_CHECK_GROUPS) + metrics["Hazmat"]
+    metrics["Total %"] = sum(metrics[name] for name in METRIC_CHECK_GROUPS)
 
     return metrics
 
@@ -167,8 +156,7 @@ def main() -> None:
 
     final_df = pd.read_excel(final_xlsx, sheet_name="Final Output")
     parts_created = get_parts_created(final_xlsx)
-    haz_parts = get_haz_parts(final_xlsx)
-    metrics = compute_metrics(final_df, parts_created, haz_parts, date_from, date_to)
+    metrics = compute_metrics(final_df, parts_created, date_from, date_to)
 
     normalize_date_columns(pd.DataFrame([metrics], columns=METRIC_COLUMNS)).to_excel(
         per_run_path, index=False, sheet_name="Metrics"

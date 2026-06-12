@@ -17,12 +17,11 @@ CHECK_COLUMNS = [
     "Check_Missing_MOA_Class",
     "Check_Class_Status",
     "Check_MRPArea",
+    "Check_Hazards",
 ]
 
+CHECK_HAZARDS_COL = "Check_Hazards"
 PARTS_CREATED_COL = "Parts Created (ZMNM rows)"
-HAZ_PARTS_COL = "HAZ Parts"
-ERROR_TYPE_COL = "Error Type"
-HAZMAT_ERROR_TYPE = "HAZMAT"
 REPORT_DATE_COL = "Report Date"
 
 # Data Quality workbook — column names vary by monthly download.

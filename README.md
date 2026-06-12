@@ -16,8 +16,9 @@ Automation for the CASRA Material Master KPI report.
 | `Main_SAP_ZMNM_xl.py` / `Main_SAP_ZMMR2199M_xl.py` | SAP GUI extracts |
 | `access-db.py` | KPI build (Access q03–q47 logic) |
 | `apply_snp_exceptions.py` | SNP exception pass |
+| `generate_hazmat_kpi.py` | HazMat pass — sets Check_Hazards from ZMNM, backfills Created on/Created |
 | `generate_kpi_metrics.py` | Dashboard metrics + master append |
-| `kpi-metrics-manual.py` | On-demand metrics from a chosen FINAL file |
+| `kpi-metrics-manual.py` | On-demand metrics from user-supplied ZMNM/ZMMR/DQ files (no HazMat pass; no KPI Master update) |
 | `casra_paths.py` | Local output folders + SharePoint sync paths |
 | `casra_dates.py` | `--date-from` / `--date-to` |
 | `casra_constants.py` | Shared column lists |
@@ -61,7 +62,8 @@ Press `2`, then enter dates as **YYYYMMDD**:
 2. `Main_SAP_ZMMR2199M_xl.py`
 3. `access-db.py`
 4. `apply_snp_exceptions.py`
-5. `generate_kpi_metrics.py`
+5. `generate_hazmat_kpi.py`
+6. `generate_kpi_metrics.py`
 
 ---
 
@@ -71,13 +73,14 @@ Under `CASRA_KPI_OUTPUT/`:
 
 | Folder | File |
 |--------|------|
-| `Intermediate/` | `CASRA_KPI_OUTPUT_<date_from>.xlsx` |
-| `SNP_Final/` | `CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx` |
-| `KPI_Metrics/` | `CASRA_KPI_METRICS_<date_from>.xlsx` |
+| `Intermediate/` | `CASRA_KPI_OUTPUT_<date_from>_<date_to>.xlsx` |
+| `SNP_Final/` | `CASRA_KPI_OUTPUT_<date_from>_<date_to>_FINAL.xlsx` |
+| `HazMat_KPI/` | `CASRA_HAZMAT_KPI_<run date>.xlsx` (debug summary + HAZ part list) |
+| `KPI_Metrics/` | `CASRA_KPI_METRICS_<date_from>_<date_to>.xlsx` |
 | `KPI_Master/` | `CASRA_KPI_METRICS_MASTER.xlsx` |
 | `KPI_Metrics_Manual/` | `CASRA_KPI_METRICS_MANUAL_<today>.xlsx` (manual script only) |
 
-`<date_from>` = period start date from your run.
+`<date_from>` and `<date_to>` = period start and end from your run.
 
 ---
 
@@ -96,6 +99,7 @@ CASRA-KPI-AUTOMATION/
 └── CASRA_KPI_OUTPUT/
     ├── Intermediate/
     ├── SNP_Final/
+    ├── HazMat_KPI/
     ├── KPI_Metrics/
     ├── KPI_Master/
     └── KPI_Metrics_Manual/
@@ -111,7 +115,7 @@ After each run, two files are copied to your SharePoint-synced folder:
 
 | Subfolder | File |
 |-----------|------|
-| `SNP_Final/` | `CASRA_KPI_OUTPUT_<date_from>_FINAL.xlsx` |
+| `SNP_Final/` | `CASRA_KPI_OUTPUT_<date_from>_<date_to>_FINAL.xlsx` (updated after HazMat pass) |
 | `KPI_Master/` | `CASRA_KPI_METRICS_MASTER.xlsx` |
 
 Update the root path in `src/casra_paths.py`:
@@ -131,11 +135,16 @@ Create `SNP_Final` and `KPI_Master` inside that folder once, then connect Power 
 ```powershell
 python access-db.py --date-from 20260501 --date-to 20260531
 python apply_snp_exceptions.py --date-from 20260501 --date-to 20260531
+python generate_hazmat_kpi.py --date-from 20260501 --date-to 20260531
+python generate_kpi_metrics.py --date-from 20260501 --date-to 20260531
 ```
 
-**Manual metrics only** (does not update KPI Master):
+Optional: set `ZMNM_FILE` at the top of `generate_hazmat_kpi.py` to point at a specific ZMNM workbook when debugging (leave blank for the normal pipeline path).
+
+**Manual metrics only** (does not update KPI Master; Hazmat % = 0 unless you run the HazMat step separately):
 
 ```powershell
 python kpi-metrics-manual.py
-python kpi-metrics-manual.py --input "C:\path\to\SNP_Final\CASRA_KPI_OUTPUT_20260501_FINAL.xlsx"
 ```
+
+Fill in `ZMNM_FILE`, `ZMMR_FILE`, and `DATA_QUALITY_FILE` at the top of `kpi-metrics-manual.py` before running.

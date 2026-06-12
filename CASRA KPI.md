@@ -32,8 +32,12 @@ The goal is to measure how many newly created parts have master-data issues, by 
 3. SNP exceptions
       Known-good parts from the monthly Data Quality file can clear a false SNP flag
 
-4. KPI metrics
-      Rolls up the final file into dashboard percentages (Parts Created, Storage Location %, etc.)
+4. HazMat KPI
+      Reads ZMNM for parts with HazMat indicator = HAZ
+      →  sets Check_Hazards = 1 on matching rows and recalculates Errors
+
+5. KPI metrics
+      Rolls up the final file into dashboard percentages (Parts Created, Storage Location %, Hazmat %, etc.)
 ```
 
 ---
@@ -99,6 +103,7 @@ All checks are independent. A part can have several checks set to 1 at the same 
 | **Check_VType Error** | Valuation type data error | Any “valuation type” report with **Field** = `mbew-bklas` or `mbew-vprsv` **and** an actual value filled in |
 | **Check_QMAT Extra** | QM inspection type not in allowed rules | ZMMR **Plant data** report, **Field** = `qmat-art`, has an actual value, but the built rule **Key** is **not** in the **QMATRules** lookup |
 | **Check_MRPArea** | MRP area issue | ZMMR row where **Field** is `marc-diber` |
+| **Check_Hazards** | HazMat / hazardous material flag | ZMNM row where **HazMat indicator = HAZ** (set in the HazMat step after SNP exceptions) |
 
 ### Errors column
 
@@ -110,6 +115,8 @@ All checks are independent. A part can have several checks set to 1 at the same 
 ### What appears in the final detail file
 
 Only parts with **SAPInt** populated are exported (parts tied to the integration / reporting scope). The file includes material attributes plus all Check_* columns and **Errors**.
+
+**Check_Hazards** is included in **Errors** when set to 1 (same as every other check column).
 
 ### Parts Created (Run Summary)
 
@@ -147,7 +154,28 @@ The **FINAL** detail file (used for Power BI part-level analysis) includes audit
 
 ---
 
-## Step 4 — Dashboard KPI metrics
+## Step 4 — HazMat KPI
+
+After SNP exceptions, the process reads the **ZMNM** extract again and looks at the **HazMat indicator** column.
+
+### How HAZ parts are flagged
+
+- For each part already in **Final Output**, if **Material Number** matches a ZMNM row with **HazMat indicator = HAZ** → **Check_Hazards = 1** on that same row (not a separate row).
+- **Created on** and **Created** are filled from ZMNM (**Created On** / **Created By**) when the HazMat flag is applied.
+- **Errors** is recalculated to include **Check_Hazards** (same as after any other check change).
+
+### Run Summary (HazMat)
+
+| Field | Meaning |
+|-------|---------|
+| **Check_Hazards errors** | Number of parts in Final Output with **Check_Hazards = 1** |
+| **Rows with Errors (post-HAZ)** | Parts with **Errors > 0** after the HazMat pass |
+
+A debug workbook is also written to **HazMat_KPI/** (`CASRA_HAZMAT_KPI_<run date>.xlsx`) listing the HAZ parts from ZMNM and a summary.
+
+---
+
+## Step 5 — Dashboard KPI metrics
 
 The metrics file does **not** list every part. It produces **one summary row per run** with percentages for leadership.
 
@@ -163,7 +191,7 @@ The metrics file does **not** list every part. It produces **one summary row per
 | **Serialized Profile** | % Check_SNP (after SNP exceptions) |
 | **Class MOA** | % Check_MOA + % Missing Model + % Missing MOA Class |
 | **Unit of Measure** | % Check_UofM |
-| **Hazmat** | Placeholder until business rules are defined (currently a fixed small value so the dashboard column exists) |
+| **Hazmat** | % **Check_Hazards** (same formula as other check columns) |
 | **MRP Area** | % Check_MRPArea |
 | **Total %** | Sum of the metrics above |
 
@@ -180,7 +208,7 @@ The **KPI Master** file keeps **one row per run** so Power BI can show trends ov
 | Purpose | File |
 |---------|------|
 | Trend / summary dashboard | **KPI_Master** — `CASRA_KPI_METRICS_MASTER.xlsx` |
-| Part-level detail / drill-down | **SNP_Final** — `CASRA_KPI_OUTPUT_<period start>_FINAL.xlsx` (one file per period) |
+| Part-level detail / drill-down | **SNP_Final** — `CASRA_KPI_OUTPUT_<date_from>_<date_to>_FINAL.xlsx` (one file per period; includes **Check_Hazards** after the HazMat step) |
 
 Both are copied to your SharePoint-synced folder after each run (see README for path configuration).
 

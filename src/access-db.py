@@ -38,6 +38,7 @@ FINAL_COLUMNS = [
     "Check_VType Error",
     "Check_QMAT Extra",
     "Check_MRPArea",
+    "Check_Hazards",
     "Errors",
 ]
 
@@ -46,7 +47,7 @@ QUERY31_COLUMNS = {
     "Material Number": ["Material Number"],
     "Description": ["Description", "Material Description"],
     "Created on": ["Created on", "Created On"],
-    "Created": ["Created"],
+    "Created": ["Created", "Created By"],
     "Full Name": ["Full Name", "Full Name of Person"],
     "Group": ["Group"],
     "MTyp": ["MTyp"],

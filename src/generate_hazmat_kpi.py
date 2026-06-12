@@ -1,7 +1,8 @@
 """Apply HazMat KPI logic after SNP exceptions.
 
-Reads SNP Final + ZMNM, counts HAZ parts (HazMat indicator = HAZ), appends missing
-HAZ rows to Final Output, updates Run Summary, and writes a debug workbook.
+Reads SNP Final + ZMNM, flags HAZ parts with Check_Hazards = 1 (same as other check
+columns), backfills Created on / Created from ZMNM, recalculates Errors, and writes a
+debug workbook.
 
 Pipeline order:
     apply_snp_exceptions  ->  generate_hazmat_kpi  ->  generate_kpi_metrics
@@ -17,14 +18,12 @@ import pandas as pd
 
 from casra_constants import (
     CHECK_COLUMNS,
-    ERROR_TYPE_COL,
-    HAZMAT_ERROR_TYPE,
-    HAZ_PARTS_COL,
+    CHECK_HAZARDS_COL,
     PARTS_CREATED_COL,
     REPORT_DATE_COL,
 )
 from casra_dates import parse_date_range
-from casra_excel import find_col, read_excel_access, read_run_summary, validate_file
+from casra_excel import coerce_check_columns, find_col, read_excel_access, read_run_summary, validate_file
 from casra_paths import (
     SAP_DIR,
     SHAREPOINT_SNP_FINAL_DIR,
@@ -40,6 +39,9 @@ ZMNM_FILE = r""
 HAZMAT_VALUE = "HAZ"
 HAZMAT_INDICATOR_COLUMNS = ["HazMat indicator", "Hazmat indicator", "Haz Mat indicator"]
 MATERIAL_NUMBER_COLUMNS = ["Material Number"]
+CREATED_ON_COLUMNS = ["Created on", "Created On"]
+CREATED_COLUMNS = ["Created", "Created By"]
+LEGACY_ERROR_TYPE_COL = "Error Type"
 
 _SRC = Path(__file__).parent
 
@@ -65,56 +67,51 @@ def filter_hazmat_parts(df: pd.DataFrame, hazmat_col: str) -> pd.DataFrame:
     return df.loc[hazmat.eq(HAZMAT_VALUE) & df[material_col].notna()].copy()
 
 
-def hazmat_materials(final_df: pd.DataFrame, material_col: str) -> set[str]:
-    if ERROR_TYPE_COL not in final_df.columns:
-        return set()
-    mask = final_df[ERROR_TYPE_COL].fillna("").astype("string").str.strip().str.upper().eq(HAZMAT_ERROR_TYPE)
-    return {norm_material(v) for v in final_df.loc[mask, material_col] if norm_material(v)}
+def build_haz_lookup(hazmat_df: pd.DataFrame) -> tuple[set[str], dict[str, dict[str, object]]]:
+    material_col = find_col(hazmat_df, MATERIAL_NUMBER_COLUMNS, "Material Number")
+    created_on_col = find_col(hazmat_df, CREATED_ON_COLUMNS, "Created on")
+    created_col = find_col(hazmat_df, CREATED_COLUMNS, "Created")
 
-
-def map_zmnm_row(
-    zmnm_row: pd.Series,
-    output_columns: list[str],
-    report_date,
-) -> dict:
-    row: dict = {}
-    for col in output_columns:
-        if col == ERROR_TYPE_COL:
-            row[col] = HAZMAT_ERROR_TYPE
-        elif col in CHECK_COLUMNS or col == "Errors":
-            row[col] = 0
-        elif col == REPORT_DATE_COL:
-            row[col] = report_date
-        elif col in zmnm_row.index and pd.notna(zmnm_row[col]):
-            row[col] = zmnm_row[col]
-        else:
-            row[col] = pd.NA
-    return row
-
-
-def append_hazmat_rows(final_df: pd.DataFrame, hazmat_df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
-    material_col = find_col(final_df, MATERIAL_NUMBER_COLUMNS, "Material Number")
-    if ERROR_TYPE_COL not in final_df.columns:
-        final_df = final_df.copy()
-        final_df[ERROR_TYPE_COL] = pd.NA
-
-    report_date = final_df[REPORT_DATE_COL].iloc[0] if REPORT_DATE_COL in final_df.columns else date.today()
-    already_hazmat = hazmat_materials(final_df, material_col)
-    output_columns = list(final_df.columns)
-
-    new_rows = []
-    for _, zmnm_row in hazmat_df.iterrows():
-        material = norm_material(zmnm_row[material_col])
-        if not material or material in already_hazmat:
+    haz_materials: set[str] = set()
+    lookup: dict[str, dict[str, object]] = {}
+    for _, row in hazmat_df.iterrows():
+        material = norm_material(row[material_col])
+        if not material:
             continue
-        new_rows.append(map_zmnm_row(zmnm_row, output_columns, report_date))
-        already_hazmat.add(material)
+        haz_materials.add(material)
+        if material not in lookup:
+            lookup[material] = {
+                "Created on": row[created_on_col],
+                "Created": row[created_col],
+            }
+    return haz_materials, lookup
 
-    if not new_rows:
-        return final_df, 0
 
-    appended = pd.DataFrame(new_rows, columns=output_columns)
-    return pd.concat([final_df, appended], ignore_index=True), len(new_rows)
+def apply_hazards_check(
+    final_df: pd.DataFrame,
+    haz_materials: set[str],
+    zmnm_lookup: dict[str, dict[str, object]],
+) -> tuple[pd.DataFrame, int]:
+    final_df = final_df.copy()
+    final_df = final_df.drop(columns=[LEGACY_ERROR_TYPE_COL], errors="ignore")
+    final_df = coerce_check_columns(final_df, CHECK_COLUMNS)
+
+    material_col = find_col(final_df, MATERIAL_NUMBER_COLUMNS, "Material Number")
+    materials = final_df[material_col].map(norm_material)
+    haz_mask = materials.isin(haz_materials)
+    final_df.loc[haz_mask, CHECK_HAZARDS_COL] = 1
+
+    for idx in final_df.index[haz_mask]:
+        material = norm_material(final_df.at[idx, material_col])
+        source = zmnm_lookup.get(material, {})
+        for col in ("Created on", "Created"):
+            value = source.get(col)
+            if value is not None and not pd.isna(value) and str(value).strip():
+                final_df.at[idx, col] = value
+
+    final_df["Errors"] = final_df[CHECK_COLUMNS].sum(axis=1)
+    flagged = int(final_df[CHECK_HAZARDS_COL].sum())
+    return final_df, flagged
 
 
 def read_workbook_sheets(path: Path) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
@@ -151,18 +148,18 @@ def resolve_zmnm_path(date_from: str) -> Path:
 def build_debug_summary(
     zmnm_path: Path,
     final_path: Path,
-    haz_parts: int,
+    haz_rows_in_zmnm: int,
+    check_hazards_flagged: int,
     parts_created: int,
-    appended_rows: int,
 ) -> pd.DataFrame:
-    haz_pct = haz_parts / parts_created if parts_created else 0.0
+    haz_pct = check_hazards_flagged / parts_created if parts_created else 0.0
     return pd.DataFrame([{
         REPORT_DATE_COL: date.today(),
         "Source ZMNM File": zmnm_path.name,
         "Source Final File": final_path.name,
         PARTS_CREATED_COL: parts_created,
-        HAZ_PARTS_COL: haz_parts,
-        "HAZ Rows Appended": appended_rows,
+        "HAZ rows in ZMNM": haz_rows_in_zmnm,
+        "Check_Hazards flagged": check_hazards_flagged,
         "Hazmat %": haz_pct,
     }])
 
@@ -174,32 +171,35 @@ def apply_hazmat_pass(final_path: Path, zmnm_path: Path) -> dict:
 
     hazmat_col = find_col(zmnm_df, HAZMAT_INDICATOR_COLUMNS, "HazMat indicator")
     hazmat_df = filter_hazmat_parts(zmnm_df, hazmat_col)
-    haz_parts = len(hazmat_df)
+    haz_rows_in_zmnm = len(hazmat_df)
+    haz_materials, zmnm_lookup = build_haz_lookup(hazmat_df)
 
     final_df, run_summary, other_sheets = read_workbook_sheets(final_path)
     if PARTS_CREATED_COL not in run_summary.columns:
         raise KeyError(f"Run Summary missing '{PARTS_CREATED_COL}'. Run access-db.py first.")
     parts_created = int(run_summary[PARTS_CREATED_COL].iloc[0])
 
-    updated_final, appended_rows = append_hazmat_rows(final_df, hazmat_df)
+    updated_final, check_hazards_flagged = apply_hazards_check(final_df, haz_materials, zmnm_lookup)
 
-    run_summary[HAZ_PARTS_COL] = haz_parts
-    run_summary["HAZ Rows Appended"] = appended_rows
-    run_summary["Rows in Output (post-HAZ)"] = len(updated_final)
+    run_summary["Check_Hazards errors"] = check_hazards_flagged
+    run_summary["Rows with Errors (post-HAZ)"] = int((updated_final["Errors"] > 0).sum())
 
     write_workbook(final_path, updated_final, run_summary, other_sheets)
 
     debug_file = hazmat_kpi_output(date.today().strftime("%Y%m%d"))
-    debug_summary = build_debug_summary(zmnm_path, final_path, haz_parts, parts_created, appended_rows)
+    debug_summary = build_debug_summary(
+        zmnm_path, final_path, haz_rows_in_zmnm, check_hazards_flagged, parts_created
+    )
     with pd.ExcelWriter(debug_file, engine="openpyxl") as writer:
         hazmat_df.to_excel(writer, sheet_name="HAZ Parts", index=False)
         debug_summary.to_excel(writer, sheet_name="Summary", index=False)
 
+    haz_pct = check_hazards_flagged / parts_created if parts_created else 0.0
     return {
-        "haz_parts": haz_parts,
+        "haz_rows_in_zmnm": haz_rows_in_zmnm,
+        "check_hazards_flagged": check_hazards_flagged,
         "parts_created": parts_created,
-        "appended_rows": appended_rows,
-        "haz_pct": haz_parts / parts_created if parts_created else 0.0,
+        "haz_pct": haz_pct,
         "final_path": final_path,
         "debug_file": debug_file,
     }
@@ -218,8 +218,8 @@ def main() -> None:
     print(f"ZMNM file:              {zmnm_path}")
     print(f"SNP Final file:         {result['final_path']}")
     print(f"Parts created:          {result['parts_created']}")
-    print(f"HAZ parts:              {result['haz_parts']}")
-    print(f"HAZ rows appended:      {result['appended_rows']}")
+    print(f"HAZ rows in ZMNM:       {result['haz_rows_in_zmnm']}")
+    print(f"Check_Hazards flagged:  {result['check_hazards_flagged']}")
     print(f"Hazmat %:               {result['haz_pct']:.4f}  ({result['haz_pct']:.2%})")
     print(f"\nDebug file:             {result['debug_file']}")
     print(f"Power BI copy:          {sharepoint_copy}")
