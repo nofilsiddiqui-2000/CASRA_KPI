@@ -20,6 +20,9 @@ CHECK_COLUMNS = [
 ]
 
 PARTS_CREATED_COL = "Parts Created (ZMNM rows)"
+HAZ_PARTS_COL = "HAZ Parts"
+ERROR_TYPE_COL = "Error Type"
+HAZMAT_ERROR_TYPE = "HAZMAT"
 REPORT_DATE_COL = "Report Date"
 
 # Data Quality workbook — column names vary by monthly download.

@@ -27,6 +27,7 @@ PIPELINE_SCRIPTS = [
     "Main_SAP_ZMMR2199M_xl.py",
     "access-db.py",
     "apply_snp_exceptions.py",
+    "generate_hazmat_kpi.py",
     "generate_kpi_metrics.py",
 ]
 

@@ -89,7 +89,7 @@ def main() -> None:
         access_output, run_summary, dq_path
     )
 
-    metrics = compute_metrics(final_df, parts_created)
+    metrics = compute_metrics(final_df, parts_created, haz_parts=0)
     run_date = date.today().strftime("%Y%m%d")
     metrics_file = kpi_metrics_manual_output(run_date)
     detail_file = metrics_file.with_name(f"CASRA_KPI_MANUAL_{run_date}_FINAL.xlsx")
