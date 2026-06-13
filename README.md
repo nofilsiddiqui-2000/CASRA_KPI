@@ -14,7 +14,7 @@ Automation for the CASRA Material Master KPI report.
 |--------|------|
 | `Run_KPI.py` | Entry point — run mode prompt, runs pipeline in order |
 | `Main_SAP_ZMNM_xl.py` / `Main_SAP_ZMMR2199M_xl.py` | SAP GUI extracts |
-| `access-db.py` | KPI build (Access q03–q47 logic) |
+| `access_db.py` | KPI build (Access q03–q47 logic) |
 | `apply_snp_exceptions.py` | SNP exception pass |
 | `generate_hazmat_kpi.py` | HazMat pass — appends ZMNM HAZ rows with Check_Hazards = 1 |
 | `generate_kpi_metrics.py` | Dashboard metrics + master append |
@@ -56,7 +56,7 @@ Press `2`, then enter dates as **YYYYMMDD**:
 
 1. `Main_SAP_ZMNM_xl.py`
 2. `Main_SAP_ZMMR2199M_xl.py`
-3. `access-db.py`
+3. `access_db.py`
 4. `apply_snp_exceptions.py`
 5. `generate_hazmat_kpi.py`
 6. `generate_kpi_metrics.py`
@@ -129,7 +129,7 @@ Create `SNP_Final` and `KPI_Master` inside that folder once, then connect Power 
 **Single step with explicit dates:**
 
 ```powershell
-python access-db.py --date-from 20260501 --date-to 20260531
+python access_db.py --date-from 20260501 --date-to 20260531
 python apply_snp_exceptions.py --date-from 20260501 --date-to 20260531
 python generate_hazmat_kpi.py --date-from 20260501 --date-to 20260531
 python generate_kpi_metrics.py --date-from 20260501 --date-to 20260531

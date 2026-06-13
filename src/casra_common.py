@@ -293,34 +293,6 @@ def snp_final_output(date_from: str, date_to: str) -> Path:
     return SNP_FINAL_DIR / f"CASRA_KPI_OUTPUT_{suffix}_FINAL.xlsx"
 
 
-def resolve_intermediate_output(date_from: str, date_to: str) -> Path:
-    """Prefer Intermediate/; fall back to legacy single-date filenames."""
-    current = intermediate_output(date_from, date_to)
-    if current.exists():
-        return current
-    legacy = INTERMEDIATE_DIR / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
-    if legacy.exists():
-        return legacy
-    flat_legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
-    if flat_legacy.exists():
-        return flat_legacy
-    return current
-
-
-def resolve_snp_final_output(date_from: str, date_to: str) -> Path:
-    """Prefer SNP_Final/; fall back to legacy single-date filenames."""
-    current = snp_final_output(date_from, date_to)
-    if current.exists():
-        return current
-    legacy = SNP_FINAL_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
-    if legacy.exists():
-        return legacy
-    flat_legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
-    if flat_legacy.exists():
-        return flat_legacy
-    return current
-
-
 def kpi_metrics_output(date_from: str, date_to: str) -> Path:
     suffix = output_period_suffix(date_from, date_to)
     return KPI_METRICS_DIR / f"CASRA_KPI_METRICS_{suffix}.xlsx"
@@ -446,28 +418,6 @@ def read_data_quality_file(path: Path) -> pd.DataFrame:
     find_col(df, DQ_DATE_COLUMNS, "Date")
     find_col(df, DQ_PART_COLUMNS, "P/N")
     return df
-
-
-def period_from_run_summary(path: Path) -> tuple[str, str]:
-    """Return (date_from, date_to) as YYYYMMDD strings from Run Summary."""
-    summary = read_run_summary(path)
-    if summary.empty:
-        return "", ""
-
-    def as_yyyymmdd(value) -> str:
-        if pd.isna(value):
-            return ""
-        converted = yyyymmdd_to_date(value)
-        if converted is not None:
-            return converted.strftime("%Y%m%d")
-        text = str(value).strip()
-        if "." in text:
-            text = text.split(".", 1)[0]
-        return text[:8] if len(text) >= 8 and text[:8].isdigit() else ""
-
-    date_from = as_yyyymmdd(summary["Date From"].iloc[0]) if "Date From" in summary.columns else ""
-    date_to = as_yyyymmdd(summary["Date To"].iloc[0]) if "Date To" in summary.columns else ""
-    return date_from, date_to
 
 
 def coerce_check_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:

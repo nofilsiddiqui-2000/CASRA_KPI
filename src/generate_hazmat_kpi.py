@@ -12,12 +12,12 @@ Pipeline order:
 
 from __future__ import annotations
 
-import importlib.util
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
+import access_db
 from casra_common import (
     CHECK_COLUMNS,
     CHECK_HAZARDS_COL,
@@ -34,7 +34,7 @@ from casra_common import (
     parse_date_range,
     read_excel_access,
     read_run_summary,
-    resolve_snp_final_output,
+    snp_final_output,
     validate_file,
 )
 
@@ -50,17 +50,6 @@ HAZMAT_INDICATOR_COLUMNS = [
 ]
 MATERIAL_NUMBER_COLUMNS = ["Material Number"]
 LEGACY_ERROR_TYPE_COL = "Error Type"
-
-_SRC = Path(__file__).parent
-
-
-def _load_access_db():
-    spec = importlib.util.spec_from_file_location("access_db", _SRC / "access-db.py")
-    if spec is None or spec.loader is None:
-        raise ImportError("Cannot load access-db.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def filter_hazmat_parts(df: pd.DataFrame, hazmat_col: str) -> pd.DataFrame:
@@ -198,7 +187,6 @@ def build_debug_summary(
 
 
 def apply_hazmat_pass(final_path: Path, zmnm_path: Path) -> dict:
-    access_db = _load_access_db()
     zmnm_df = read_excel_access(zmnm_path)
     zmnm_df = access_db.ensure_description_column(zmnm_df)
 
@@ -208,7 +196,7 @@ def apply_hazmat_pass(final_path: Path, zmnm_path: Path) -> dict:
 
     final_df, run_summary, other_sheets = read_workbook_sheets(final_path)
     if PARTS_CREATED_COL not in run_summary.columns:
-        raise KeyError(f"Run Summary missing '{PARTS_CREATED_COL}'. Run access-db.py first.")
+        raise KeyError(f"Run Summary missing '{PARTS_CREATED_COL}'. Run access_db.py first.")
     parts_created = int(run_summary[PARTS_CREATED_COL].iloc[0])
 
     updated_final, check_hazards_flagged, appended_rows = apply_hazmat_to_final(
@@ -245,7 +233,7 @@ def main() -> None:
     date_from, date_to = parse_date_range("generate_hazmat_kpi")
     ensure_output_dirs()
 
-    final_path = validate_file(resolve_snp_final_output(date_from, date_to), "SNP Final output")
+    final_path = validate_file(snp_final_output(date_from, date_to), "SNP Final output")
     zmnm_path = resolve_zmnm_path(date_from)
 
     result = apply_hazmat_pass(final_path, zmnm_path)

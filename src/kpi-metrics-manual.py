@@ -7,12 +7,12 @@ Runs access-db checks and SNP exceptions on your files, then writes metrics.
 Does not update KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx.
 """
 
-import importlib.util
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
+import access_db
 from apply_snp_exceptions import run_snp_pass
 from casra_common import ensure_output_dirs, kpi_metrics_manual_output
 from generate_kpi_metrics import (
@@ -26,17 +26,6 @@ from generate_kpi_metrics import (
 ZMNM_FILE = r""
 ZMMR_FILE = r""
 DATA_QUALITY_FILE = r""
-
-_SRC = Path(__file__).parent
-
-
-def _load_access_db():
-    spec = importlib.util.spec_from_file_location("access_db", _SRC / "access-db.py")
-    if spec is None or spec.loader is None:
-        raise ImportError("Cannot load access-db.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def require_path(value: str, name: str) -> Path:
@@ -74,7 +63,6 @@ def main() -> None:
     zmmr_path = require_path(ZMMR_FILE, "ZMMR_FILE")
     dq_path = require_path(DATA_QUALITY_FILE, "DATA_QUALITY_FILE")
 
-    access_db = _load_access_db()
     ensure_output_dirs()
 
     paths = access_db.build_paths_from_files(zmnm_path, zmmr_path)

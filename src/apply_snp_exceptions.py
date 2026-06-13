@@ -13,12 +13,12 @@ from casra_common import (
     coerce_check_columns,
     ensure_output_dirs,
     find_col,
+    intermediate_output,
     mirror_to_sharepoint,
     parse_date_range,
     read_data_quality_file,
     read_excel_table,
     read_run_summary,
-    resolve_intermediate_output,
     snp_final_output,
     validate_file,
 )
@@ -151,7 +151,7 @@ def main() -> None:
     ensure_output_dirs()
 
     access_file = validate_file(
-        resolve_intermediate_output(date_from, date_to),
+        intermediate_output(date_from, date_to),
         "Access output (Intermediate/ or legacy CASRA_KPI_OUTPUT root)",
     )
     output_file = snp_final_output(date_from, date_to)
