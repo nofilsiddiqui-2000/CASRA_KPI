@@ -2,8 +2,7 @@ from datetime import datetime, timedelta
 import os, time
 import win32com.client
 
-from casra_config import read_config
-from casra_dates import parse_date_range
+from casra_common import parse_date_range, read_config
 
 def convert_txt_to_xlsx(txt_path, xlsx_path):
     excel = None

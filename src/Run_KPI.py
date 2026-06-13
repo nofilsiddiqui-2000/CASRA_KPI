@@ -17,7 +17,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from casra_dates import DATE_FORMAT, previous_month_range
+from casra_common import DATE_FORMAT, previous_month_range
 
 
 BASE_DIR = Path(__file__).parent

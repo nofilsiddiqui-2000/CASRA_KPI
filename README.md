@@ -19,11 +19,7 @@ Automation for the CASRA Material Master KPI report.
 | `generate_hazmat_kpi.py` | HazMat pass — appends ZMNM HAZ rows with Check_Hazards = 1 |
 | `generate_kpi_metrics.py` | Dashboard metrics + master append |
 | `kpi-metrics-manual.py` | On-demand metrics from user-supplied ZMNM/ZMMR/DQ files (no HazMat pass; no KPI Master update) |
-| `casra_paths.py` | Local output folders + SharePoint sync paths |
-| `casra_dates.py` | `--date-from` / `--date-to` |
-| `casra_constants.py` | Shared column lists |
-| `casra_excel.py` | Shared Excel helpers |
-| `casra_config.py` | `config.txt` reader (SAP) |
+| `casra_common.py` | Shared helpers — column lists, dates (`--date-from`/`--date-to`), `config.txt` reader, output/SharePoint paths, Excel helpers |
 
 ---
 
@@ -118,7 +114,7 @@ After each run, two files are copied to your SharePoint-synced folder:
 | `SNP_Final/` | `CASRA_KPI_OUTPUT_<date_from>_<date_to>_FINAL.xlsx` (updated after HazMat pass) |
 | `KPI_Master/` | `CASRA_KPI_METRICS_MASTER.xlsx` |
 
-Update the root path in `src/casra_paths.py`:
+Update the root path in `src/casra_common.py`:
 
 ```python
 SHAREPOINT_SYNC_ROOT = Path(r"C:\Users\B1020000\Bombardier\SharePoint-Sync\CASRA_KPI_PowerBI")

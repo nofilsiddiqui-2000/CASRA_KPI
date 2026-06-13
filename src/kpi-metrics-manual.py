@@ -14,7 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from apply_snp_exceptions import run_snp_pass
-from casra_paths import ensure_output_dirs, kpi_metrics_manual_output
+from casra_common import ensure_output_dirs, kpi_metrics_manual_output
 from generate_kpi_metrics import (
     METRIC_COLUMNS,
     compute_metrics,
