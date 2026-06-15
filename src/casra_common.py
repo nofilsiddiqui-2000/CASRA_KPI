@@ -268,10 +268,86 @@ def ensure_output_dirs() -> None:
         folder.mkdir(parents=True, exist_ok=True)
 
 
+def onedrive_sync_roots() -> list[Path]:
+    """Local folders OneDrive is actually syncing on this machine.
+
+    Combines the OneDrive* environment variables (the signed-in user's OneDrive
+    roots) with the per-tenant mount points OneDrive records in the registry
+    (each synced SharePoint/Teams library). This lets us tell a genuine synced
+    library apart from a hand-made folder that merely looks like one.
+    """
+    roots: list[Path] = []
+
+    for var in ("OneDrive", "OneDriveCommercial", "OneDriveConsumer"):
+        value = os.environ.get(var)
+        if value:
+            roots.append(Path(value))
+
+    # Synced SharePoint/Teams libraries are registered as value names (local
+    # paths) under each tenant key.
+    try:
+        import winreg
+
+        accounts_key = r"Software\Microsoft\OneDrive\Accounts"
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, accounts_key) as accounts:
+            for i in range(winreg.QueryInfoKey(accounts)[0]):
+                account = winreg.EnumKey(accounts, i)
+                tenants_key = rf"{accounts_key}\{account}\Tenants"
+                try:
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, tenants_key) as tenants:
+                        for j in range(winreg.QueryInfoKey(tenants)[0]):
+                            tenant = winreg.EnumKey(tenants, j)
+                            with winreg.OpenKey(
+                                winreg.HKEY_CURRENT_USER, rf"{tenants_key}\{tenant}"
+                            ) as tenant_key:
+                                for k in range(winreg.QueryInfoKey(tenant_key)[1]):
+                                    name, _value, _type = winreg.EnumValue(tenant_key, k)
+                                    roots.append(Path(name))
+                except OSError:
+                    continue
+    except (ImportError, OSError):
+        pass
+
+    unique: list[Path] = []
+    for root in roots:
+        if root not in unique:
+            unique.append(root)
+    return unique
+
+
+def _is_under_sync_root(path: Path) -> bool:
+    target = path.resolve()
+    for root in onedrive_sync_roots():
+        try:
+            target.relative_to(root.resolve())
+            return True
+        except ValueError:
+            continue
+    return False
+
+
 def mirror_to_sharepoint(local_file: Path, sharepoint_dir: Path) -> Path:
-    """Copy a pipeline output file into the SharePoint-synced folder for Power BI."""
+    """Copy a pipeline output file into the SharePoint-synced folder for Power BI.
+
+    Fails loudly if `sharepoint_dir` is not inside a real OneDrive sync root, so
+    a misconfigured placeholder path can't silently "succeed" while SharePoint
+    and Power BI keep reading stale data.
+    """
     if not local_file.exists():
         raise FileNotFoundError(f"Cannot mirror missing file: {local_file}")
+
+    if not _is_under_sync_root(sharepoint_dir):
+        detected = onedrive_sync_roots()
+        roots_text = "\n  ".join(str(r) for r in detected) if detected else "(none detected)"
+        raise RuntimeError(
+            "SharePoint mirror target is NOT inside a OneDrive sync folder:\n"
+            f"  {sharepoint_dir}\n\n"
+            "Files copied here will not reach SharePoint or Power BI.\n"
+            "OneDrive sync roots detected on this machine:\n"
+            f"  {roots_text}\n\n"
+            "Fix SHAREPOINT_SYNC_ROOT in casra_common.py to point at the real "
+            "synced library (the folder showing the OneDrive sync icon)."
+        )
 
     sharepoint_dir.mkdir(parents=True, exist_ok=True)
     destination = sharepoint_dir / local_file.name
