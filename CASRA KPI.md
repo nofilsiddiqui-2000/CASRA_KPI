@@ -222,6 +222,12 @@ The metrics file does **not** list every part. It produces **one summary row per
 
 Each percentage = *(number of parts with that check = 1) ÷ Parts Created*.
 
+### Raw part counts alongside each %
+
+Every metric also has a companion **`<metric> Count`** column holding the **raw part count** — the numerator *before* dividing by Parts Created. So the file shows both, side by side: **Storage Location** (%) and **Storage Location Count** (parts), **Serialized Profile** and **Serialized Profile Count**, **Hazmat** and **Hazmat Count**, and so on. **Total Count** is the sum of all the metric counts (the numerator behind **Total %**).
+
+For any metric: *metric % = `<metric> Count` ÷ Parts Created*.
+
 **Note:** **Check_Class_Status** is calculated in the detail file but is **not** included in these dashboard buckets (by design).
 
 The **KPI Master** file keeps **one row per run** so Power BI can show trends over time.

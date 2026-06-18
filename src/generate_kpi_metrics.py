@@ -24,23 +24,6 @@ from casra_common import (
 
 DATE_COLUMNS = (REPORT_DATE_COL, "Date From", "Date To")
 
-METRIC_COLUMNS = [
-    REPORT_DATE_COL,
-    "Date From",
-    "Date To",
-    "Parts Created",
-    "Storage Location",
-    "QM Insp Type",
-    "Valuation Type",
-    "Batch MNGMT",
-    "Serialized Profile",
-    "Class MOA",
-    "Unit of Measure",
-    "Hazmat",
-    "MRP Area",
-    "Total %",
-]
-
 # KPI bucket name -> Check_* columns summed for that bucket (logic unchanged).
 METRIC_CHECK_GROUPS: dict[str, list[str]] = {
     "Storage Location": ["Check_SLoc Missing", "Check_SLoc_MRPInd"],
@@ -53,6 +36,23 @@ METRIC_CHECK_GROUPS: dict[str, list[str]] = {
     "Hazmat": ["Check_Hazards"],
     "MRP Area": ["Check_MRPArea"],
 }
+
+# Suffix for the raw part-count column that accompanies each metric %.
+COUNT_SUFFIX = " Count"
+
+
+def count_column(metric_name: str) -> str:
+    return f"{metric_name}{COUNT_SUFFIX}"
+
+
+# Each metric bucket contributes two columns: the % and the raw part count
+# (the numerator, before dividing by Parts Created). They are interleaved so
+# each count sits directly next to its percentage.
+METRIC_COLUMNS = [REPORT_DATE_COL, "Date From", "Date To", "Parts Created"]
+for _name in METRIC_CHECK_GROUPS:
+    METRIC_COLUMNS.append(_name)
+    METRIC_COLUMNS.append(count_column(_name))
+METRIC_COLUMNS += ["Total %", "Total Count"]
 
 
 def sum_check(df: pd.DataFrame, col: str) -> int:
@@ -94,9 +94,6 @@ def compute_metrics(
             f"Parts Created is {parts_created}; cannot compute KPI percentages."
         )
 
-    def pct(col_name: str) -> float:
-        return sum_check(final_df, col_name) / parts_created
-
     metrics: dict = {
         REPORT_DATE_COL: date.today(),
         "Date From": yyyymmdd_to_date(date_from) or pd.NaT,
@@ -104,10 +101,15 @@ def compute_metrics(
         "Parts Created": parts_created,
     }
 
+    total_count = 0
     for metric_name, check_cols in METRIC_CHECK_GROUPS.items():
-        metrics[metric_name] = sum(pct(col) for col in check_cols)
+        count = sum(sum_check(final_df, col) for col in check_cols)
+        metrics[metric_name] = count / parts_created
+        metrics[count_column(metric_name)] = count
+        total_count += count
 
     metrics["Total %"] = sum(metrics[name] for name in METRIC_CHECK_GROUPS)
+    metrics["Total Count"] = total_count
 
     return metrics
 
