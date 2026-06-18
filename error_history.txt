@@ -1,40 +1,70 @@
-(.venv) PS C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src> python .\Run_KPI.py
+(.venv) PS C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION> python .\src\Run_KPI.py
 
 CASRA KPI - Run Configuration
 ----------------------------------------
   1) Automated  -  Previous calendar month
   2) Manual     -  Enter a custom date range
 
-Select run mode [1/2]: 1
+Select run mode [1/2]: 2
 
-  Using previous month: 20260501 -> 20260531
+  Start date (YYYYMMDD): 20260504
+  End date   (YYYYMMDD): 20260531
 
 >>> Running Main_SAP_ZMNM_xl.py ...
 
 >>> Running Main_SAP_ZMMR2199M_xl.py ...
 
 >>> Running access-db.py ...
-Parts created (ZMMR rows): 279
-Rows exported: 260
+Parts created (ZMNM rows): 256
+Rows exported: 246
 Rows with errors: 12
-Output created: C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\CASRA_KPI_OUTPUT\Intermediate\CASRA_KPI_OUTPUT_20260501.xlsx
+Output created: C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\CASRA_KPI_OUTPUT\Intermediate\CASRA_KPI_OUTPUT_20260504_20260531.xlsx
 
 >>> Running apply_snp_exceptions.py ...
+  Reading Data Quality file: Data_Quality_ZRPN_ZSGR_JUNEExtract.xlsx
+  Data Quality: sheet 'Sheet1', header row 1
+Input file: C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\CASRA_KPI_OUTPUT\Intermediate\CASRA_KPI_OUTPUT_20260504_20260531.xlsx
+Data Quality file: C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\LookUp Tables\Data_Quality_ZRPN_ZSGR_JUNEExtract.xlsx
+
+Run Summary:
+  Parts Created (ZMNM rows): 256
+  Rows in Output: 246
+  Rows with Errors (pre-SNP): 12
+  Date From: 2026-05-04 00:00:00
+  Date To: 2026-05-31 00:00:00
+  Check_SNP errors before: 5
+  Check_SNP exceptions applied: 4
+  Check_SNP errors after: 1
+  Rows with Errors (post-SNP): 9
+
+Output created: C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\CASRA_KPI_OUTPUT\SNP_Final\CASRA_KPI_OUTPUT_20260504_20260531_FINAL.xlsx
+Power BI copy:    C:\Users\B1020000\Bombardier\SharePoint-Sync\CASRA_KPI_PowerBI\SNP_Final\CASRA_KPI_OUTPUT_20260504_20260531_FINAL.xlsx
+
+>>> Running generate_hazmat_kpi.py ...
+ZMNM file:              C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\SAP_Extracts\ZMNM\ZMNM_20260504.xlsx
+SNP Final file:         C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\CASRA_KPI_OUTPUT\SNP_Final\CASRA_KPI_OUTPUT_20260504_20260531_FINAL.xlsx
+Parts created:          256
+HAZ rows in ZMNM:       2
+Check_Hazards flagged:  2
+HAZ rows appended:      2
+Hazmat %:               0.0078  (0.78%)
+
+Debug file:             C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\CASRA_KPI_OUTPUT\HazMat_KPI\CASRA_HAZMAT_KPI_20260618.xlsx
+Power BI copy:          C:\Users\B1020000\Bombardier\SharePoint-Sync\CASRA_KPI_PowerBI\SNP_Final\CASRA_KPI_OUTPUT_20260504_20260531_FINAL.xlsx
+
+>>> Running generate_kpi_metrics.py ...
 Traceback (most recent call last):
-  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\apply_snp_exceptions.py", line 222, in <module>
-    main()
-  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\apply_snp_exceptions.py", line 175, in main
-    dataquality_file = validate_file(DATAQUALITY_FILE, "Data Quality file")
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\apply_snp_exceptions.py", line 42, in validate_file
-    raise FileNotFoundError(f"{label} file not found: {path}")
-FileNotFoundError: Data Quality file file not found: C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\LookUp Tables\Data_Quality_ZRPN_ZGSR_NonSerialized.xlsx
+  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\generate_kpi_metrics.py", line 18, in <module>
+    from generate_kpi_metrics import (
+  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\generate_kpi_metrics.py", line 18, in <module>
+    from generate_kpi_metrics import (
+ImportError: cannot import name 'METRIC_COLUMNS' from partially initialized module 'generate_kpi_metrics' (most likely due to a circular import) (C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\generate_kpi_metrics.py)
 Traceback (most recent call last):
-  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\Run_KPI.py", line 111, in <module>
+  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\Run_KPI.py", line 103, in <module>
     main()
-  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\Run_KPI.py", line 104, in main
+  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\Run_KPI.py", line 96, in main
     run_script(script, date_from, date_to)
-  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\Run_KPI.py", line 97, in run_script
+  File "C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src\Run_KPI.py", line 89, in run_script
     raise RuntimeError(f"Error while running {script_name}. Stopping.")
-RuntimeError: Error while running apply_snp_exceptions.py. Stopping.
-(.venv) PS C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\src> 
+RuntimeError: Error while running generate_kpi_metrics.py. Stopping.
+(.venv) PS C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION> 
