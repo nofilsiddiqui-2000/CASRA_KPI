@@ -268,10 +268,86 @@ def ensure_output_dirs() -> None:
         folder.mkdir(parents=True, exist_ok=True)
 
 
+def onedrive_sync_roots() -> list[Path]:
+    """Local folders OneDrive is actually syncing on this machine.
+
+    Combines the OneDrive* environment variables (the signed-in user's OneDrive
+    roots) with the per-tenant mount points OneDrive records in the registry
+    (each synced SharePoint/Teams library). This lets us tell a genuine synced
+    library apart from a hand-made folder that merely looks like one.
+    """
+    roots: list[Path] = []
+
+    for var in ("OneDrive", "OneDriveCommercial", "OneDriveConsumer"):
+        value = os.environ.get(var)
+        if value:
+            roots.append(Path(value))
+
+    # Synced SharePoint/Teams libraries are registered as value names (local
+    # paths) under each tenant key.
+    try:
+        import winreg
+
+        accounts_key = r"Software\Microsoft\OneDrive\Accounts"
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, accounts_key) as accounts:
+            for i in range(winreg.QueryInfoKey(accounts)[0]):
+                account = winreg.EnumKey(accounts, i)
+                tenants_key = rf"{accounts_key}\{account}\Tenants"
+                try:
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, tenants_key) as tenants:
+                        for j in range(winreg.QueryInfoKey(tenants)[0]):
+                            tenant = winreg.EnumKey(tenants, j)
+                            with winreg.OpenKey(
+                                winreg.HKEY_CURRENT_USER, rf"{tenants_key}\{tenant}"
+                            ) as tenant_key:
+                                for k in range(winreg.QueryInfoKey(tenant_key)[1]):
+                                    name, _value, _type = winreg.EnumValue(tenant_key, k)
+                                    roots.append(Path(name))
+                except OSError:
+                    continue
+    except (ImportError, OSError):
+        pass
+
+    unique: list[Path] = []
+    for root in roots:
+        if root not in unique:
+            unique.append(root)
+    return unique
+
+
+def _is_under_sync_root(path: Path) -> bool:
+    target = path.resolve()
+    for root in onedrive_sync_roots():
+        try:
+            target.relative_to(root.resolve())
+            return True
+        except ValueError:
+            continue
+    return False
+
+
 def mirror_to_sharepoint(local_file: Path, sharepoint_dir: Path) -> Path:
-    """Copy a pipeline output file into the SharePoint-synced folder for Power BI."""
+    """Copy a pipeline output file into the SharePoint-synced folder for Power BI.
+
+    Fails loudly if `sharepoint_dir` is not inside a real OneDrive sync root, so
+    a misconfigured placeholder path can't silently "succeed" while SharePoint
+    and Power BI keep reading stale data.
+    """
     if not local_file.exists():
         raise FileNotFoundError(f"Cannot mirror missing file: {local_file}")
+
+    if not _is_under_sync_root(sharepoint_dir):
+        detected = onedrive_sync_roots()
+        roots_text = "\n  ".join(str(r) for r in detected) if detected else "(none detected)"
+        raise RuntimeError(
+            "SharePoint mirror target is NOT inside a OneDrive sync folder:\n"
+            f"  {sharepoint_dir}\n\n"
+            "Files copied here will not reach SharePoint or Power BI.\n"
+            "OneDrive sync roots detected on this machine:\n"
+            f"  {roots_text}\n\n"
+            "Fix SHAREPOINT_SYNC_ROOT in casra_common.py to point at the real "
+            "synced library (the folder showing the OneDrive sync icon)."
+        )
 
     sharepoint_dir.mkdir(parents=True, exist_ok=True)
     destination = sharepoint_dir / local_file.name
@@ -291,34 +367,6 @@ def intermediate_output(date_from: str, date_to: str) -> Path:
 def snp_final_output(date_from: str, date_to: str) -> Path:
     suffix = output_period_suffix(date_from, date_to)
     return SNP_FINAL_DIR / f"CASRA_KPI_OUTPUT_{suffix}_FINAL.xlsx"
-
-
-def resolve_intermediate_output(date_from: str, date_to: str) -> Path:
-    """Prefer Intermediate/; fall back to legacy single-date filenames."""
-    current = intermediate_output(date_from, date_to)
-    if current.exists():
-        return current
-    legacy = INTERMEDIATE_DIR / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
-    if legacy.exists():
-        return legacy
-    flat_legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}.xlsx"
-    if flat_legacy.exists():
-        return flat_legacy
-    return current
-
-
-def resolve_snp_final_output(date_from: str, date_to: str) -> Path:
-    """Prefer SNP_Final/; fall back to legacy single-date filenames."""
-    current = snp_final_output(date_from, date_to)
-    if current.exists():
-        return current
-    legacy = SNP_FINAL_DIR / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
-    if legacy.exists():
-        return legacy
-    flat_legacy = OUTPUT_ROOT / f"CASRA_KPI_OUTPUT_{date_from}_FINAL.xlsx"
-    if flat_legacy.exists():
-        return flat_legacy
-    return current
 
 
 def kpi_metrics_output(date_from: str, date_to: str) -> Path:
@@ -446,28 +494,6 @@ def read_data_quality_file(path: Path) -> pd.DataFrame:
     find_col(df, DQ_DATE_COLUMNS, "Date")
     find_col(df, DQ_PART_COLUMNS, "P/N")
     return df
-
-
-def period_from_run_summary(path: Path) -> tuple[str, str]:
-    """Return (date_from, date_to) as YYYYMMDD strings from Run Summary."""
-    summary = read_run_summary(path)
-    if summary.empty:
-        return "", ""
-
-    def as_yyyymmdd(value) -> str:
-        if pd.isna(value):
-            return ""
-        converted = yyyymmdd_to_date(value)
-        if converted is not None:
-            return converted.strftime("%Y%m%d")
-        text = str(value).strip()
-        if "." in text:
-            text = text.split(".", 1)[0]
-        return text[:8] if len(text) >= 8 and text[:8].isdigit() else ""
-
-    date_from = as_yyyymmdd(summary["Date From"].iloc[0]) if "Date From" in summary.columns else ""
-    date_to = as_yyyymmdd(summary["Date To"].iloc[0]) if "Date To" in summary.columns else ""
-    return date_from, date_to
 
 
 def coerce_check_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:

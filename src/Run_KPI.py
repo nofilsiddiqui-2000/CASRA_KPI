@@ -9,7 +9,7 @@
 # SNP exceptions all align on the same date range.
 #
 # Make sure to update the export paths in the SAP extract scripts to point
-# to a shared location that this script can access, and that access-db.py
+# to a shared location that this script can access, and that access_db.py
 # can also access to pull the exported files from.
 
 from datetime import datetime
@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).parent
 PIPELINE_SCRIPTS = [
     "Main_SAP_ZMNM_xl.py",
     "Main_SAP_ZMMR2199M_xl.py",
-    "access-db.py",
+    "access_db.py",
     "apply_snp_exceptions.py",
     "generate_hazmat_kpi.py",
     "generate_kpi_metrics.py",

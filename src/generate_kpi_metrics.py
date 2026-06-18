@@ -17,7 +17,7 @@ from casra_common import (
     kpi_metrics_output,
     mirror_to_sharepoint,
     parse_date_range,
-    resolve_snp_final_output,
+    snp_final_output,
     validate_file,
     yyyymmdd_to_date,
 )
@@ -70,7 +70,7 @@ def get_parts_created(final_xlsx) -> int:
     except (ValueError, KeyError) as exc:
         raise RuntimeError(
             f"Run Summary sheet not found in {final_xlsx}. "
-            "Run access-db.py and apply_snp_exceptions.py first."
+            "Run access_db.py and apply_snp_exceptions.py first."
         ) from exc
 
     if run_summary.empty:
@@ -150,7 +150,7 @@ def main() -> None:
     date_from, date_to = parse_date_range("generate_kpi_metrics")
     ensure_output_dirs()
 
-    final_xlsx = resolve_snp_final_output(date_from, date_to)
+    final_xlsx = snp_final_output(date_from, date_to)
     per_run_path = kpi_metrics_output(date_from, date_to)
     master_path = kpi_master_output()
 

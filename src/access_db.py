@@ -402,7 +402,7 @@ def run_kpi_build(
 
 
 def main() -> None:
-    date_from, date_to = parse_date_range("access-db")
+    date_from, date_to = parse_date_range("access_db")
     paths = resolve_input_paths(date_from, date_to)
     final_output, run_summary, parts_created = run_kpi_build(
         paths, date_from=date_from, date_to=date_to
