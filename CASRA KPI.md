@@ -34,7 +34,9 @@ The goal is to measure how many newly created parts have master-data issues, by 
 
 4. HazMat KPI
       Reads ZMNM for parts with HazMat indicator = HAZ
-      →  sets Check_Hazards = 1 on matching rows and recalculates Errors
+      →  validates each part in MM03 (Sales Text across 3 sales orgs)
+      →  Check_Hazards = 0 if flagged "HAZARDOUS MATERIAL" everywhere, else 1
+      →  appends validated parts and recalculates Errors
 
 5. KPI metrics
       Rolls up the final file into dashboard percentages (Parts Created, Storage Location %, Hazmat %, etc.)
@@ -103,7 +105,7 @@ All checks are independent. A part can have several checks set to 1 at the same 
 | **Check_VType Error** | Valuation type data error | Any “valuation type” report with **Field** = `mbew-bklas` or `mbew-vprsv` **and** an actual value filled in |
 | **Check_QMAT Extra** | QM inspection type not in allowed rules | ZMMR **Plant data** report, **Field** = `qmat-art`, has an actual value, but the built rule **Key** is **not** in the **QMATRules** lookup |
 | **Check_MRPArea** | MRP area issue | ZMMR row where **Field** is `marc-diber` |
-| **Check_Hazards** | HazMat / hazardous material flag | ZMNM row where **HazMat indicator = HAZ** (set in the HazMat step after SNP exceptions) |
+| **Check_Hazards** | HazMat / hazardous material flag | ZMNM part with **HazMat indicator = HAZ** whose MM03 Sales Text is **not** `HAZARDOUS MATERIAL` in **every** sales org (3000 / 4200 / 1000). Validated live in MM03 during the HazMat step, after SNP exceptions |
 
 ### Errors column
 
@@ -156,32 +158,45 @@ The **FINAL** detail file (used for Power BI part-level analysis) includes audit
 
 ## Step 4 — HazMat KPI
 
-After SNP exceptions, the process reads the **ZMNM** extract again and looks at the **HazMat indicator** column.
+After SNP exceptions, the process reads the **ZMNM** extract again and selects the parts with **HazMat indicator = HAZ**. These are the parts that *should* be marked as hazardous. The step then checks, in SAP, whether each one was actually flagged correctly.
+
+### MM03 validation (the real check)
+
+For every HAZ part, the automation opens **MM03** (Display Material) and reads the **Sales Text** long text for **all three sales orgs** — **3000**, **4200**, **1000** (plant 3099, distribution channel 00):
+
+- If the Sales Text reads **`HAZARDOUS MATERIAL`** (ignoring case / surrounding whitespace) in **every** sales org → the part was flagged correctly → **Check_Hazards = 0**.
+- If **any** sales org shows anything else — blank, `HAZMAT`, partial text, etc. → the part is an error → **Check_Hazards = 1**.
+
+**It is one error per part.** If an employee entered `HAZARDOUS MATERIAL` correctly in 3000 but missed 4200 and 1000, that is still a single error (Check_Hazards = 1), not three.
 
 ### Why HAZ parts are appended (not matched)
 
 **Final Output** is built from ZMNM rows that have **SAPInt** populated — often filled from **ZMMR** via the q31 merge. HAZ parts usually exist only on the raw **ZMNM** extract (no SAPInt, not in ZMMR), so they are **not** in Final Output before this step.
 
-The HazMat pass **appends** each HAZ ZMNM part as a new row (it does not search ZMMR rows for a match).
+The HazMat pass **appends** each validated HAZ part as a new row (it does not search ZMMR rows for a match).
 
 ### What is appended
 
-For each ZMNM row with **HazMat indicator = HAZ**, unless that **Material Number** already has **Check_Hazards = 1** in Final Output:
+For each ZMNM HAZ part that was successfully validated in MM03:
 
-- A new row is appended with **Check_Hazards = 1**, all other **Check_*** = **0**, **Errors = 1**
-- **Material Number**, **Created on** (from ZMNM **Created On**), **Created** (from ZMNM **Created By**), **Description**, and other attribute columns are copied from ZMNM where column names match
+- A new row is appended with its validated **Check_Hazards** value (**0** if correctly flagged in all sales orgs, **1** if not), all other **Check_*** = **0**, and **Errors** recalculated accordingly.
+- **Material Number**, **Created on** (from ZMNM **Created On**), **Created** (from ZMNM **Created By**), **Description**, and other attribute columns are copied from ZMNM where column names match.
 
 A part may appear twice in Final Output — once from the normal KPI build (ZMMR/other checks) and once as the appended HAZ row from ZMNM.
+
+**Parts that cannot be validated** in MM03 (material not found, the Sales Text control is missing, or a SAP error occurs mid-lookup) are **skipped** — not appended and not counted as errors — and listed on the **Skipped Parts** sheet of the debug workbook for manual follow-up. (A complete SAP failure — no session or missing credentials — stops the step with an error instead of silently skipping every part.)
 
 ### Run Summary (HazMat)
 
 | Field | Meaning |
 |-------|---------|
 | **Check_Hazards errors** | Number of rows in Final Output with **Check_Hazards = 1** |
-| **HAZ rows appended** | HAZ parts added to Final Output because they were not already present |
+| **HAZ rows appended** | Validated HAZ parts added to Final Output (passing + failing) |
+| **HAZ parts validated (MM03)** | HAZ parts successfully read in MM03 |
+| **HAZ parts skipped (MM03)** | HAZ parts that could not be read in MM03 |
 | **Rows with Errors (post-HAZ)** | Parts with **Errors > 0** after the HazMat pass |
 
-A debug workbook is also written to **HazMat_KPI/** (`CASRA_HAZMAT_KPI_<run date>.xlsx`) listing the HAZ parts from ZMNM and a summary.
+A debug workbook is also written to **HazMat_KPI/** (`CASRA_HAZMAT_KPI_<run date>.xlsx`) with four sheets: **HAZ Parts** (the HAZ rows from ZMNM), **MM03 Results** (the Sales Text read for each part × sales org, with pass/fail), **Skipped Parts**, and a **Summary**.
 
 ---
 
