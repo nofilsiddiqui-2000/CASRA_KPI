@@ -4,6 +4,8 @@ Automation for the CASRA Material Master KPI report.
 
 **Business rules and column logic** → see [CASRA KPI.md](CASRA%20KPI.md) (for analysts and process owners).
 
+**Explaining why one part was flagged** → see [Validating KPI Errors.md](Validating%20KPI%20Errors.md) (which file to open, what to search for, what counts as an error).
+
 **This README** → how the code is organized and how to run it.
 
 ---
