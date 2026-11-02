@@ -4,7 +4,7 @@ This module consolidates what used to live in five separate files:
     casra_constants  ->  Shared column lists
     casra_dates      ->  Date parsing / range utilities
     casra_config     ->  config.txt reader (SAP credentials)
-    casra_paths      ->  Output folder layout + SharePoint sync
+    casra_paths      ->  Output folder layout
     casra_excel      ->  Excel read/write helpers
 
 The pipeline scripts (access-db, apply_snp_exceptions, generate_hazmat_kpi,

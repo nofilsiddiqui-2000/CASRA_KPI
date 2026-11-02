@@ -7,6 +7,7 @@ and appends to KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx.
 from datetime import date
 
 import pandas as pd
+from openpyxl import load_workbook
 
 from casra_common import (
     PARTS_CREATED_COL,
@@ -123,18 +124,59 @@ def normalize_date_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def append_to_master(master_path, new_row: dict) -> pd.DataFrame:
-    new_row_df = pd.DataFrame([new_row], columns=METRIC_COLUMNS)
+def append_to_master(master_path, new_row: dict) -> int:
+    """Add one metrics row to the master workbook. Returns the new row count.
 
-    if master_path.exists():
-        existing = normalize_date_columns(pd.read_excel(master_path))
-        combined = pd.concat([existing, new_row_df], ignore_index=True)
-    else:
-        combined = new_row_df
+    Only the new row is written. Everything already in the file is left exactly
+    as it is - corrected numbers, HazMat errors patched in by hand, notes, extra
+    columns, extra sheets, formatting.
 
-    combined = normalize_date_columns(combined.reindex(columns=METRIC_COLUMNS))
-    combined.to_excel(master_path, index=False, sheet_name="Metrics")
-    return combined
+    This used to read the whole sheet, re-normalise every date and write the
+    file back out from scratch, which threw away all of that on each run.
+
+    The new row is laid out to match the header already in the sheet, so a
+    column you added or moved stays where you put it. A metric that has no
+    column in the sheet is reported rather than silently dropped.
+    """
+    row = normalize_date_columns(pd.DataFrame([new_row], columns=METRIC_COLUMNS)).iloc[0]
+
+    if not master_path.exists():
+        pd.DataFrame([row], columns=METRIC_COLUMNS).to_excel(
+            master_path, index=False, sheet_name="Metrics"
+        )
+        return 1
+
+    workbook = load_workbook(master_path)
+    sheet = workbook["Metrics"] if "Metrics" in workbook.sheetnames else workbook.worksheets[0]
+
+    headers = [cell.value for cell in sheet[1]]
+    if not any(headers):
+        raise RuntimeError(
+            f"{master_path} has no header row on sheet '{sheet.title}'; "
+            "cannot tell which column is which. Fix or remove the file."
+        )
+
+    missing = [col for col in METRIC_COLUMNS if col not in headers]
+    if missing:
+        print(f"  WARNING: no column in the master file for: {missing}")
+        print("           those values are not being written. Add the columns, or")
+        print("           accept that this run's numbers for them live only in the")
+        print("           per-run metrics file.")
+
+    target_row = sheet.max_row + 1
+    for index, header in enumerate(headers, start=1):
+        if header not in row.index:
+            continue
+        value = row[header]
+        cell = sheet.cell(row=target_row, column=index)
+        cell.value = None if pd.isna(value) else value
+        # keep whatever formatting the column above already uses
+        above = sheet.cell(row=target_row - 1, column=index)
+        if above.number_format:
+            cell.number_format = above.number_format
+
+    workbook.save(master_path)
+    return target_row - 1
 
 
 def print_metrics(metrics: dict) -> None:
@@ -163,13 +205,13 @@ def main() -> None:
     normalize_date_columns(pd.DataFrame([metrics], columns=METRIC_COLUMNS)).to_excel(
         per_run_path, index=False, sheet_name="Metrics"
     )
-    master_df = append_to_master(master_path, metrics)
+    master_rows = append_to_master(master_path, metrics)
 
     print("\nKPI Metrics:")
     print_metrics(metrics)
 
     print(f"\nPer-run metrics file: {per_run_path}")
-    print(f"Master metrics file:  {master_path}  ({len(master_df)} row(s))")
+    print(f"Master metrics file:  {master_path}  ({master_rows} row(s))")
 
 
 if __name__ == "__main__":
