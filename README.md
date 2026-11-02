@@ -27,9 +27,14 @@ Automation for the CASRA Material Master KPI report.
 ## How to run
 
 ```powershell
-cd D:\Bombardier\CASRA_KPI\src
+cd <your copy>\CASRA-KPI-AUTOMATION\src
 python Run_KPI.py
 ```
+
+`Run_KPI.py` runs all six steps in order. It asks you two things first, then
+goes through to the end on its own.
+
+### 1. Pick the date range
 
 ```
 CASRA KPI - Run Configuration
@@ -40,27 +45,67 @@ CASRA KPI - Run Configuration
 Select run mode [1/2]:
 ```
 
-### Option 1 — Automated
-
-Press `1`. Uses the previous calendar month for all steps (example: run on 1 Jun 2026 → `20260501` to `20260531`).
-
-### Option 2 — Manual
-
-Press `2`, then enter dates as **YYYYMMDD**:
+`1` uses the previous calendar month (run on 1 Jun 2026 and you get `20260501`
+to `20260531`). `2` asks for the two dates as **YYYYMMDD**:
 
 ```
   Start date (YYYYMMDD): 20260330
   End date   (YYYYMMDD): 20260503
 ```
 
+The same range is passed to every step, so the extracts, the KPI build and the
+SNP exceptions all cover the same period.
+
+### 2. Confirm the Data Quality file
+
+```
+Data Quality file
+----------------------------------------
+  Expected: ...\LookUp Tables\Data Quality-Sept.xlsx
+  Found, last modified 2026-09-30 14:22
+
+  Is the Data Quality file up to date for this run? [y/n]:
+```
+
+Answer `n` and the run stops before anything is written. Answer `y` and it
+continues. This is the monthly download the SNP exceptions come from - a stale
+file silently applies last month's exceptions to this month's numbers, which is
+why it asks. If you downloaded a new month, rename `DATAQUALITY_FILE` at the top
+of `apply_snp_exceptions.py` to match.
+
+### 3. HazMat is skipped
+
+Next you will see:
+
+```
+Note: HazMat is running in skip mode, so Hazmat % will be 0.00%.
+      Verify HAZ parts by hand in MM03 (see generate_hazmat_kpi.py).
+```
+
+This is the default and nothing needs to be done to get it. **SAP is not opened
+for HazMat and Hazmat % always comes out 0.00%**, so the HazMat errors are yours
+to check in MM03 and type into `CASRA_KPI_METRICS_MASTER.xlsx` afterwards. The
+HAZ parts to check are listed on the `HAZ Parts` sheet of
+`HazMat_KPI/CASRA_HAZMAT_KPI_<run date>.xlsx`, and `Validating KPI Errors.md`
+has the MM03 steps.
+
+Everything else in the pipeline runs for real. Only this one step is stubbed,
+because the recorded MM03 navigation blocks mid-run. See [HazMat
+modes](#hazmat-modes) for how to turn it on once that is fixed.
+
 ### Pipeline order
 
-1. `Main_SAP_ZMNM_xl.py`
-2. `Main_SAP_ZMMR2199M_xl.py`
-3. `access_db.py`
-4. `apply_snp_exceptions.py`
-5. `generate_hazmat_kpi.py`
-6. `generate_kpi_metrics.py`
+| | Step | SAP? |
+|-|------|------|
+| 1 | `Main_SAP_ZMNM_xl.py` | yes - ZMNM extract |
+| 2 | `Main_SAP_ZMMR2199M_xl.py` | yes - ZMMR2199M extract |
+| 3 | `access_db.py` | no |
+| 4 | `apply_snp_exceptions.py` | no |
+| 5 | `generate_hazmat_kpi.py` | no, in `skip` mode |
+| 6 | `generate_kpi_metrics.py` | no |
+
+A step that fails stops the run; the steps before it keep whatever they wrote,
+so you can fix the problem and run again.
 
 ---
 
