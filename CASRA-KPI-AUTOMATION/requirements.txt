@@ -1,7 +1,9 @@
 # requirements.txt
-requests
-psutil
-pywin32; sys_platform == "win32"   # provides win32com.client 
-# SharePointAPI         this API needs to be installed separately as it is not available
-# AzureAPI
+
 pandas
+openpyxl                               # pandas needs it for .xlsx read/write
+pywin32; sys_platform == "win32"       # provides win32com.client (SAP GUI + Excel)
+
+# Not imported by any script in src/ - kept in case another tool here needs them.
+# requests
+# psutil
