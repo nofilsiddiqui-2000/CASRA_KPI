@@ -11,11 +11,9 @@ import pandas as pd
 from casra_common import (
     PARTS_CREATED_COL,
     REPORT_DATE_COL,
-    SHAREPOINT_KPI_MASTER_DIR,
     ensure_output_dirs,
     kpi_master_output,
     kpi_metrics_output,
-    mirror_to_sharepoint,
     parse_date_range,
     snp_final_output,
     validate_file,
@@ -169,11 +167,9 @@ def main() -> None:
 
     print("\nKPI Metrics:")
     print_metrics(metrics)
-    sharepoint_copy = mirror_to_sharepoint(master_path, SHAREPOINT_KPI_MASTER_DIR)
 
     print(f"\nPer-run metrics file: {per_run_path}")
     print(f"Master metrics file:  {master_path}  ({len(master_df)} row(s))")
-    print(f"Power BI copy:        {sharepoint_copy}")
 
 
 if __name__ == "__main__":

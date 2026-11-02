@@ -1,8 +1,39 @@
-from datetime import datetime, timedelta
-import os, time
+"""ZMNM extract - step 1 of the pipeline.
+
+Runs the ZMNM report in SAP for the given date range, downloads it as a
+tab-delimited .txt, converts it to .xlsx and deletes the .txt.
+
+Output: SAP_Extracts/ZMNM/ZMNM_<date_from>.xlsx  (read by access_db.py)
+"""
+
+import os
+import time
+
 import win32com.client
 
-from casra_common import parse_date_range, read_config
+from casra_common import (
+    SAP_DIR,
+    close_sap_session,
+    config_list,
+    open_sap_session,
+    parse_date_range,
+    read_config,
+)
+
+EXPORT_DIR = SAP_DIR / "ZMNM"
+
+PLANT = "3099"
+
+# The "Created by" multiple-selection table shows 8 rows at a time. Entries
+# past the eighth are reached by scrolling, which is what enter_created_by
+# below reproduces.
+VISIBLE_SELECTION_ROWS = 8
+
+SELECTION_TABLE = (
+    "wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE"
+)
+SELECTION_FIELD = SELECTION_TABLE + "/txtRSCSEL_255-SLOW_I[1,{row}]"
+
 
 def convert_txt_to_xlsx(txt_path, xlsx_path):
     excel = None
@@ -34,185 +65,134 @@ def convert_txt_to_xlsx(txt_path, xlsx_path):
         if excel is not None:
             excel.Quit()
 
-config = read_config()
 
-asset_num = config.get("asset_num", "")
-if asset_num == "P22208617":
-    execution_line = "Executed on LAPTOP (MTL)"
-else:
-    execution_line = f"Executed Manually on {asset_num}"
+def enter_created_by(session, user_ids):
+    """Type the "Created by" user IDs into the multiple-selection screen.
 
-automation_status = "On"
+    The IDs come from config.txt (zmnm_created_by). They are the KPI's scope
+    filter, so the list must match what the business expects.
+    """
+    last_field = None
+    last_value = ""
 
-if automation_status == "On":
+    for index, user_id in enumerate(user_ids):
+        if index < VISIBLE_SELECTION_ROWS:
+            row = index
+        else:
+            # Scroll so this entry lands on the row after the previous one.
+            session.findById(SELECTION_TABLE).verticalScrollbar.position = index - 6
+            row = 6
 
-    status = {
-        "Meta": {
-            "Execution Line": execution_line,
-            "Start Time": datetime.today().strftime("%H:%M")
-        },
-        "Reporting Period": datetime.today().strftime("%b %d, %Y"),
-        "Error Count": 0,
-        "ZMNM": "null"
-    }
+        last_field = SELECTION_FIELD.format(row=row)
+        last_value = user_id
+        session.findById(last_field).text = user_id
 
-    session = None
-    connection = None
-    application = None
-    SapGuiAuto = None
+    if last_field is not None:
+        session.findById(last_field).setFocus()
+        session.findById(last_field).caretPosition = len(last_value)
 
+
+def run_extract(session, date_from, date_to, created_by, txt_file_path, xlsx_file_path):
+    """Drive ZMNM and leave the finished .xlsx at xlsx_file_path."""
+    session.findById("wnd[0]").maximize()
+    session.findById("wnd[0]/tbar[0]/okcd").text = "ZMNM"
+    session.findById("wnd[0]").sendVKey(0)
+
+    # low date
+    session.findById("wnd[0]/usr/ctxtSO_ERSDA-LOW").setFocus()
+    session.findById("wnd[0]/usr/ctxtSO_ERSDA-LOW").caretPosition = 0
+    session.findById("wnd[0]").sendVKey(4)
+    session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").focusDate = date_from
+    session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").firstVisibleDate = date_from
+    session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").selectionInterval = f"{date_from},{date_from}"
+
+    # high date
+    session.findById("wnd[0]/usr/ctxtSO_ERSDA-HIGH").setFocus()
+    session.findById("wnd[0]/usr/ctxtSO_ERSDA-HIGH").caretPosition = 0
+    session.findById("wnd[0]").sendVKey(4)
+    session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").focusDate = date_to
+    session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").selectionInterval = f"{date_to},{date_to}"
+
+    # created by filter
+    session.findById("wnd[0]/usr/txtSO_ERNAM-LOW").setFocus()
+    session.findById("wnd[0]/usr/txtSO_ERNAM-LOW").caretPosition = 0
+    session.findById("wnd[0]/usr/btn%_SO_ERNAM_%_APP_%-VALU_PUSH").press()
+
+    enter_created_by(session, created_by)
+    session.findById("wnd[1]/tbar[0]/btn[8]").press()
+
+    # plant filter
+    session.findById("wnd[0]/usr/ctxtSO_WERKS-LOW").text = PLANT
+    session.findById("wnd[0]/usr/ctxtSO_WERKS-LOW").setFocus()
+    session.findById("wnd[0]/usr/ctxtSO_WERKS-LOW").caretPosition = 4
+
+    # execute
+    session.findById("wnd[0]/tbar[1]/btn[8]").press()
+
+    # export txt first
+    session.findById("wnd[0]/usr/cntlMY_AREA_CONTROL/shellcont/shell").pressToolbarButton("Z_DOWNLOAD")
+    session.findById("wnd[1]/usr/ctxtRLGRAP-FILENAME").text = txt_file_path
+    session.findById("wnd[1]/tbar[0]/btn[0]").press()
+
+    try:
+        session.findById("wnd[1]/usr/btnSPOP-OPTION1").press()
+    except Exception:
+        pass
+
+    time.sleep(2)
+
+    if not os.path.exists(txt_file_path) or os.path.getsize(txt_file_path) == 0:
+        raise RuntimeError("Export TXT file was not created correctly.")
+
+    convert_txt_to_xlsx(txt_file_path, xlsx_file_path)
+
+    if not os.path.exists(xlsx_file_path) or os.path.getsize(xlsx_file_path) == 0:
+        raise RuntimeError("Excel file was not created correctly.")
+
+    try:
+        os.remove(txt_file_path)
+    except Exception:
+        pass
+
+
+def main():
+    date_from, date_to = parse_date_range("Main_SAP_ZMNM_xl")
+
+    config = read_config()
     username = config.get("username", "")
     password = config.get("password", "")
+    created_by = config_list(config, "zmnm_created_by")
 
-    if username and password:
-        # export_path = r"C:\Users\B1020000\Bombardier\Team CM Aftermarket - SAP Reports\ZMNM"
-        export_path = r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION\SAP_Extracts\ZMNM"      # this needs to  be the path to save the extracts to, and the next script will need to be updated to pull from this path as well. I have it set to a folder in my documents for testing, but in production it should be a shared drive or SharePoint folder that the next script can access.
-        os.makedirs(export_path, exist_ok=True)
+    if not username or not password:
+        raise RuntimeError("Missing SAP GUI credentials. Set username/password in config.txt.")
+    if not created_by:
+        raise RuntimeError(
+            "No ZMNM 'Created by' users configured. Set zmnm_created_by in config.txt "
+            "(comma-separated SAP user IDs)."
+        )
 
-        date_from, date_to = parse_date_range("Main_SAP_ZMNM_xl")
+    EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-        txt_file_name = f"ZMNM_{date_from}.txt"
-        xlsx_file_name = f"ZMNM_{date_from}.xlsx"
+    txt_file_path = str(EXPORT_DIR / f"ZMNM_{date_from}.txt")
+    xlsx_file_path = str(EXPORT_DIR / f"ZMNM_{date_from}.xlsx")
 
-        txt_file_path = os.path.join(export_path, txt_file_name)
-        xlsx_file_path = os.path.join(export_path, xlsx_file_name)
+    for stale in (txt_file_path, xlsx_file_path):
+        if os.path.exists(stale):
+            os.remove(stale)
 
-        if os.path.exists(txt_file_path):
-            os.remove(txt_file_path)
-        if os.path.exists(xlsx_file_path):
-            os.remove(xlsx_file_path)
+    session = open_sap_session(username, password)
+    if session is None:
+        raise RuntimeError("SAP GUI instance not found.")
 
-        os.system(f'''"C:\\Program Files (x86)\\SAP\\FrontEnd\\SAPgui\\sapshcut.exe" -system=PR2 -client=320 -user={username} -pw={password}''')
+    try:
+        run_extract(session, date_from, date_to, created_by, txt_file_path, xlsx_file_path)
+    finally:
+        close_sap_session(session)
 
-        count = 0
-        while not isinstance(session, win32com.client.CDispatch):
-            time.sleep(1)
-            count += 1
-            if count > 60:
-                status["ZMNM"] = "⚠ Error: SAP GUI instance not found."
-                status["Error Count"] += 1
-                break
-            try:
-                SapGuiAuto = win32com.client.GetObject("SAPGUI")
-                if not isinstance(SapGuiAuto, win32com.client.CDispatch):
-                    continue
-                application = SapGuiAuto.GetScriptingEngine
-                if not isinstance(application, win32com.client.CDispatch):
-                    SapGuiAuto = None
-                    continue
-                connection = application.Children(0)
-                if not isinstance(connection, win32com.client.CDispatch):
-                    application = None
-                    SapGuiAuto = None
-                    continue
-                session = connection.Children(0)
-                if not isinstance(session, win32com.client.CDispatch):
-                    connection = None
-                    application = None
-                    SapGuiAuto = None
-                    continue
-            except Exception:
-                continue
+    print(f"ZMNM extract created: {xlsx_file_path}")
+    print(f"Date range: {date_from} -> {date_to}")
+    print(f"Created by: {', '.join(created_by)}")
 
-    else:
-        status["ZMNM"] = "⚠ Error: Missing SAP GUI credentials."
-        status["Error Count"] += 1
 
-    if status["ZMNM"] == "null":
-        try:
-            session.findById("wnd[0]").maximize()
-            session.findById("wnd[0]/tbar[0]/okcd").text = "ZMNM"
-            session.findById("wnd[0]").sendVKey(0)
-
-            # low date
-            session.findById("wnd[0]/usr/ctxtSO_ERSDA-LOW").setFocus()
-            session.findById("wnd[0]/usr/ctxtSO_ERSDA-LOW").caretPosition = 0
-            session.findById("wnd[0]").sendVKey(4)
-            session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").focusDate = date_from
-            session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").firstVisibleDate = date_from
-            session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").selectionInterval = f"{date_from},{date_from}"
-
-            # high date
-            session.findById("wnd[0]/usr/ctxtSO_ERSDA-HIGH").setFocus()
-            session.findById("wnd[0]/usr/ctxtSO_ERSDA-HIGH").caretPosition = 0
-            session.findById("wnd[0]").sendVKey(4)
-            session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").focusDate = date_to
-            session.findById("wnd[1]/usr/cntlCONTAINER/shellcont/shell").selectionInterval = f"{date_to},{date_to}"
-
-            # created by filter
-            session.findById("wnd[0]/usr/txtSO_ERNAM-LOW").setFocus()
-            session.findById("wnd[0]/usr/txtSO_ERNAM-LOW").caretPosition = 0
-            session.findById("wnd[0]/usr/btn%_SO_ERNAM_%_APP_%-VALU_PUSH").press()
-
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,0]").text = "B0516399"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,1]").text = "B0466709"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,2]").text = "B0536466"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,3]").text = "B0460021"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,4]").text = "B0534548"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,5]").text = "B0533127"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,6]").text = "B0530939"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,7]").text = "B0075972"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,7]").setFocus()
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,7]").caretPosition = 9
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE").verticalScrollbar.position = 1
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE").verticalScrollbar.position = 2
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,6]").text = "B0737251"
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,6]").setFocus()
-            session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/txtRSCSEL_255-SLOW_I[1,6]").caretPosition = 8
-            session.findById("wnd[1]/tbar[0]/btn[8]").press()
-
-            # plant filter
-            session.findById("wnd[0]/usr/ctxtSO_WERKS-LOW").text = "3099"
-            session.findById("wnd[0]/usr/ctxtSO_WERKS-LOW").setFocus()
-            session.findById("wnd[0]/usr/ctxtSO_WERKS-LOW").caretPosition = 4
-
-            # execute
-            session.findById("wnd[0]/tbar[1]/btn[8]").press()
-
-            # export txt first
-            session.findById("wnd[0]/usr/cntlMY_AREA_CONTROL/shellcont/shell").pressToolbarButton("Z_DOWNLOAD")
-            session.findById("wnd[1]/usr/ctxtRLGRAP-FILENAME").text = txt_file_path
-            session.findById("wnd[1]/tbar[0]/btn[0]").press()
-
-            try:
-                session.findById("wnd[1]/usr/btnSPOP-OPTION1").press()
-            except Exception:
-                pass
-
-            time.sleep(2)
-
-            if not os.path.exists(txt_file_path) or os.path.getsize(txt_file_path) == 0:
-                status["ZMNM"] = "⚠ Error: Export TXT file was not created correctly."
-                status["Error Count"] += 1
-            else:
-                convert_txt_to_xlsx(txt_file_path, xlsx_file_path)
-
-                if not os.path.exists(xlsx_file_path) or os.path.getsize(xlsx_file_path) == 0:
-                    status["ZMNM"] = "⚠ Error: Excel file was not created correctly."
-                    status["Error Count"] += 1
-                else:
-                    try:
-                        os.remove(txt_file_path)
-                    except Exception:
-                        pass
-                    status["ZMNM"] = "✓"
-
-        except Exception as err:
-            print(f"Unexpected {err=}, {type(err)=}")
-            status["ZMNM"] = "⚠ Error: VBScript execution failed."
-            status["Error Count"] += 1
-
-    if session is not None:
-        try:
-            session.findById("wnd[0]").close()
-            try:
-                session.findById("wnd[1]/usr/btnSPOP-OPTION1").press()
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-    session = None
-    connection = None
-    application = None
-    SapGuiAuto = None
+if __name__ == "__main__":
+    main()

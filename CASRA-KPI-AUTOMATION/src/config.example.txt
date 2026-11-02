@@ -1,0 +1,13 @@
+# Copy this file to config.txt (same folder) and fill in the real values.
+# config.txt is gitignored on purpose - it holds credentials and must never
+# be committed.
+
+# SAP logon used by the ZMNM / ZMMR2199M extracts and the HazMat MM03 pass.
+username = "YOUR_SAP_USER"
+password = "YOUR_SAP_PASSWORD"
+
+# ZMNM "Created by" filter: the SAP user IDs whose part creations are in scope
+# for the KPI. Comma-separated, in the order they should be entered into the
+# multiple-selection screen. Changing this list changes which parts are
+# extracted, and therefore every KPI number.
+zmnm_created_by = "B0000001,B0000002"

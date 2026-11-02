@@ -5,19 +5,24 @@
 #   2) Manual     - user enters a custom start and end date once.
 #
 # The selected (date_from, date_to) is passed to every step via
-# --date-from / --date-to so the SAP extracts, access-db output, and
+# --date-from / --date-to so the SAP extracts, access_db output, and
 # SNP exceptions all align on the same date range.
 #
-# Make sure to update the export paths in the SAP extract scripts to point
-# to a shared location that this script can access, and that access_db.py
-# can also access to pull the exported files from.
+# Before the first step runs, the operator is asked to confirm that this
+# month's Data Quality workbook has been downloaded - see
+# confirm_data_quality_file() below.
+#
+# All input and output folders hang off the project root, which casra_common
+# resolves from its own location. Nothing here needs a machine-specific path.
 
 from datetime import datetime
 from pathlib import Path
 import subprocess
 import sys
 
+from apply_snp_exceptions import DATAQUALITY_FILE
 from casra_common import DATE_FORMAT, previous_month_range
+from generate_hazmat_kpi import HAZMAT_MODE
 
 
 BASE_DIR = Path(__file__).parent
@@ -68,6 +73,40 @@ def select_mode() -> tuple[str, str]:
         print("  Invalid selection. Enter 1 or 2.")
 
 
+def confirm_data_quality_file(date_to: str) -> None:
+    """Make the operator confirm the Data Quality download before anything runs.
+
+    apply_snp_exceptions.py reads this workbook to clear Check_SNP errors that
+    have already been accepted. It is downloaded by hand each month, so a stale
+    file quietly means last month's exceptions get applied to this month's run.
+    """
+    print("\nData Quality file")
+    print("-" * 40)
+    print(f"  Expected: {DATAQUALITY_FILE}")
+
+    if DATAQUALITY_FILE.exists():
+        modified = datetime.fromtimestamp(DATAQUALITY_FILE.stat().st_mtime)
+        print(f"  Found, last modified {modified:%Y-%m-%d %H:%M}")
+        if modified.date() < datetime.strptime(date_to, DATE_FORMAT).date():
+            print("  WARNING: it is older than the end of the period you just selected.")
+    else:
+        print("  NOT FOUND.")
+        print("  Download this month's Data Quality export into 'LookUp Tables',")
+        print("  then update DATAQUALITY_FILE at the top of apply_snp_exceptions.py")
+        print("  so the filename matches.")
+
+    print("\n  SNP exceptions come from this file. A stale or missing download")
+    print("  means the SNP exceptions for this period will not be applied.")
+
+    while True:
+        answer = input("\n  Is the Data Quality file up to date for this run? [y/n]: ").strip().lower()
+        if answer in ("y", "yes"):
+            return
+        if answer in ("n", "no"):
+            raise SystemExit("\nStopped. Refresh the Data Quality file, then run again.")
+        print("  Enter y or n.")
+
+
 def run_script(script_name: str, date_from: str, date_to: str) -> None:
     script_path = BASE_DIR / script_name
 
@@ -91,6 +130,11 @@ def run_script(script_name: str, date_from: str, date_to: str) -> None:
 
 def main() -> None:
     date_from, date_to = select_mode()
+    confirm_data_quality_file(date_to)
+
+    if HAZMAT_MODE == "skip":
+        print("\nNote: HazMat is running in skip mode, so Hazmat % will be 0.00%.")
+        print("      Verify HAZ parts by hand in MM03 (see generate_hazmat_kpi.py).")
 
     for script in PIPELINE_SCRIPTS:
         run_script(script, date_from, date_to)

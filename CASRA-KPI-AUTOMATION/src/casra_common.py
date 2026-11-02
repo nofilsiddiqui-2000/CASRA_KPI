@@ -17,8 +17,8 @@ because the Excel helpers at the bottom rely on them.
 from __future__ import annotations
 
 import argparse
-import os
-import shutil
+import subprocess
+import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -210,16 +210,93 @@ def read_config(config_dir: Path | None = None) -> dict[str, str]:
 
 
 # ============================================================================
+# SAP GUI
+# ============================================================================
+#
+# One copy of the session handling that the ZMNM / ZMMR2199M extracts and the
+# HazMat MM03 pass each used to carry their own duplicate of.
+
+SAPSHCUT_EXE = r"C:\Program Files (x86)\SAP\FrontEnd\SAPgui\sapshcut.exe"
+SAP_SYSTEM = "PR2"
+SAP_CLIENT = "320"
+SAP_SESSION_TIMEOUT_SECONDS = 60
+
+
+def launch_sap_gui(username: str, password: str) -> None:
+    """Start SAP GUI through sapshcut.exe and log the user on."""
+    subprocess.run(
+        [
+            SAPSHCUT_EXE,
+            f"-system={SAP_SYSTEM}",
+            f"-client={SAP_CLIENT}",
+            f"-user={username}",
+            f"-pw={password}",
+        ],
+        check=False,
+    )
+
+
+def attach_sap_session(timeout_seconds: int = SAP_SESSION_TIMEOUT_SECONDS):
+    """Poll for the SAP GUI scripting session. Returns the session, or None on timeout."""
+    import win32com.client
+
+    for _ in range(timeout_seconds):
+        time.sleep(1)
+        try:
+            sap_gui_auto = win32com.client.GetObject("SAPGUI")
+            if not isinstance(sap_gui_auto, win32com.client.CDispatch):
+                continue
+            application = sap_gui_auto.GetScriptingEngine
+            if not isinstance(application, win32com.client.CDispatch):
+                continue
+            connection = application.Children(0)
+            if not isinstance(connection, win32com.client.CDispatch):
+                continue
+            session = connection.Children(0)
+            if isinstance(session, win32com.client.CDispatch):
+                return session
+        except Exception:
+            continue
+    return None
+
+
+def open_sap_session(username: str, password: str,
+                     timeout_seconds: int = SAP_SESSION_TIMEOUT_SECONDS):
+    """Log on and return a scripting session, or None if one never appears."""
+    launch_sap_gui(username, password)
+    return attach_sap_session(timeout_seconds)
+
+
+def close_sap_session(session) -> None:
+    """Close the main window, confirming the "unsaved data" popup if it appears."""
+    if session is None:
+        return
+    try:
+        session.findById("wnd[0]").close()
+        try:
+            session.findById("wnd[1]/usr/btnSPOP-OPTION1").press()
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
+def config_list(config: dict[str, str], key: str) -> list[str]:
+    """Read a comma-separated config.txt value as a list of trimmed strings."""
+    return [item.strip() for item in config.get(key, "").split(",") if item.strip()]
+
+
+# ============================================================================
 # Paths  (was casra_paths.py)
 # ============================================================================
 #
 # Folder layout for CASRA_KPI_OUTPUT. Each pipeline stage's files live in their
 # own subfolder (same idea as SAP_Extracts/ZMNM and SAP_Extracts/ZMMR2199M).
 
-ROOT_DIR = Path(
-    r"C:\Users\B1020000\Documents\Nofil\Dashboards\CASRA MM Dashboard\CASRA-KPI-AUTOMATION"
-)
-# ROOT_DIR = Path(__file__).resolve().parent.parent
+# The project root is the folder holding src/, LookUp Tables/ and SAP_Extracts/.
+# Resolved from this file so the pipeline runs from wherever the folder lives,
+# with no machine-specific path to maintain.
+ROOT_DIR = Path(__file__).resolve().parent.parent
 
 OUTPUT_ROOT = ROOT_DIR / "CASRA_KPI_OUTPUT"
 
@@ -232,9 +309,6 @@ SNP_FINAL_DIR = OUTPUT_ROOT / "SNP_Final"
 # generate_kpi_metrics.py — one-row metrics workbook per run
 KPI_METRICS_DIR = OUTPUT_ROOT / "KPI_Metrics"
 
-# kpi-metrics-manual.py — on-demand metrics (does not update master)
-KPI_METRICS_MANUAL_DIR = OUTPUT_ROOT / "KPI_Metrics_Manual"
-
 # generate_hazmat_kpi.py — HazMat KPI debug workbook
 HAZMAT_KPI_DIR = OUTPUT_ROOT / "HazMat_KPI"
 
@@ -244,115 +318,16 @@ KPI_MASTER_DIR = OUTPUT_ROOT / "KPI_Master"
 LOOKUP_DIR = ROOT_DIR / "LookUp Tables"
 SAP_DIR = ROOT_DIR / "SAP_Extracts"
 
-# Power BI reads from this SharePoint-synced folder on the work desktop.
-# Create SNP_Final/ and KPI_Master/ inside it, then update this path to match.
-SHAREPOINT_SYNC_ROOT = Path(
-    r"C:\Users\B1020000\Bombardier\Team CM Aftermarket - Data Warehouse\CASRA_KPI"
-)
-
-SHAREPOINT_SNP_FINAL_DIR = SHAREPOINT_SYNC_ROOT / "SNP_Final"
-SHAREPOINT_KPI_MASTER_DIR = SHAREPOINT_SYNC_ROOT / "KPI_Master"
-
 
 def ensure_output_dirs() -> None:
     for folder in (
         INTERMEDIATE_DIR,
         SNP_FINAL_DIR,
         KPI_METRICS_DIR,
-        KPI_METRICS_MANUAL_DIR,
         HAZMAT_KPI_DIR,
         KPI_MASTER_DIR,
-        SHAREPOINT_SNP_FINAL_DIR,
-        SHAREPOINT_KPI_MASTER_DIR,
     ):
         folder.mkdir(parents=True, exist_ok=True)
-
-
-def onedrive_sync_roots() -> list[Path]:
-    """Local folders OneDrive is actually syncing on this machine.
-
-    Combines the OneDrive* environment variables (the signed-in user's OneDrive
-    roots) with the per-tenant mount points OneDrive records in the registry
-    (each synced SharePoint/Teams library). This lets us tell a genuine synced
-    library apart from a hand-made folder that merely looks like one.
-    """
-    roots: list[Path] = []
-
-    for var in ("OneDrive", "OneDriveCommercial", "OneDriveConsumer"):
-        value = os.environ.get(var)
-        if value:
-            roots.append(Path(value))
-
-    # Synced SharePoint/Teams libraries are registered as value names (local
-    # paths) under each tenant key.
-    try:
-        import winreg
-
-        accounts_key = r"Software\Microsoft\OneDrive\Accounts"
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, accounts_key) as accounts:
-            for i in range(winreg.QueryInfoKey(accounts)[0]):
-                account = winreg.EnumKey(accounts, i)
-                tenants_key = rf"{accounts_key}\{account}\Tenants"
-                try:
-                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, tenants_key) as tenants:
-                        for j in range(winreg.QueryInfoKey(tenants)[0]):
-                            tenant = winreg.EnumKey(tenants, j)
-                            with winreg.OpenKey(
-                                winreg.HKEY_CURRENT_USER, rf"{tenants_key}\{tenant}"
-                            ) as tenant_key:
-                                for k in range(winreg.QueryInfoKey(tenant_key)[1]):
-                                    name, _value, _type = winreg.EnumValue(tenant_key, k)
-                                    roots.append(Path(name))
-                except OSError:
-                    continue
-    except (ImportError, OSError):
-        pass
-
-    unique: list[Path] = []
-    for root in roots:
-        if root not in unique:
-            unique.append(root)
-    return unique
-
-
-def _is_under_sync_root(path: Path) -> bool:
-    target = path.resolve()
-    for root in onedrive_sync_roots():
-        try:
-            target.relative_to(root.resolve())
-            return True
-        except ValueError:
-            continue
-    return False
-
-
-def mirror_to_sharepoint(local_file: Path, sharepoint_dir: Path) -> Path:
-    """Copy a pipeline output file into the SharePoint-synced folder for Power BI.
-
-    Fails loudly if `sharepoint_dir` is not inside a real OneDrive sync root, so
-    a misconfigured placeholder path can't silently "succeed" while SharePoint
-    and Power BI keep reading stale data.
-    """
-    if not local_file.exists():
-        raise FileNotFoundError(f"Cannot mirror missing file: {local_file}")
-
-    if not _is_under_sync_root(sharepoint_dir):
-        detected = onedrive_sync_roots()
-        roots_text = "\n  ".join(str(r) for r in detected) if detected else "(none detected)"
-        raise RuntimeError(
-            "SharePoint mirror target is NOT inside a OneDrive sync folder:\n"
-            f"  {sharepoint_dir}\n\n"
-            "Files copied here will not reach SharePoint or Power BI.\n"
-            "OneDrive sync roots detected on this machine:\n"
-            f"  {roots_text}\n\n"
-            "Fix SHAREPOINT_SYNC_ROOT in casra_common.py to point at the real "
-            "synced library (the folder showing the OneDrive sync icon)."
-        )
-
-    sharepoint_dir.mkdir(parents=True, exist_ok=True)
-    destination = sharepoint_dir / local_file.name
-    shutil.copy2(local_file, destination)
-    return destination
 
 
 def output_period_suffix(date_from: str, date_to: str) -> str:
@@ -376,10 +351,6 @@ def kpi_metrics_output(date_from: str, date_to: str) -> Path:
 
 def kpi_master_output() -> Path:
     return KPI_MASTER_DIR / "CASRA_KPI_METRICS_MASTER.xlsx"
-
-
-def kpi_metrics_manual_output(run_date: str) -> Path:
-    return KPI_METRICS_MANUAL_DIR / f"CASRA_KPI_METRICS_MANUAL_{run_date}.xlsx"
 
 
 def hazmat_kpi_output(run_date: str) -> Path:

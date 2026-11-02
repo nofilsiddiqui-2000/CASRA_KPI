@@ -16,10 +16,9 @@ Automation for the CASRA Material Master KPI report.
 | `Main_SAP_ZMNM_xl.py` / `Main_SAP_ZMMR2199M_xl.py` | SAP GUI extracts |
 | `access_db.py` | KPI build (Access q03–q47 logic) |
 | `apply_snp_exceptions.py` | SNP exception pass |
-| `generate_hazmat_kpi.py` | HazMat pass — validates ZMNM HAZ parts in MM03 (Sales Text across 3 sales orgs) and appends them with Check_Hazards 0/1. Needs SAP GUI |
+| `generate_hazmat_kpi.py` | HazMat pass. Two modes set by `HAZMAT_MODE`: `skip` (default, no SAP, Hazmat % = 0.00%) and `live` (MM03 validation — not working yet) |
 | `generate_kpi_metrics.py` | Dashboard metrics + master append |
-| `kpi-metrics-manual.py` | On-demand metrics from user-supplied ZMNM/ZMMR/DQ files (no HazMat pass; no KPI Master update) |
-| `casra_common.py` | Shared helpers — column lists, dates (`--date-from`/`--date-to`), `config.txt` reader, output/SharePoint paths, Excel helpers |
+| `casra_common.py` | Shared helpers — column lists, dates (`--date-from`/`--date-to`), `config.txt` reader, output paths, SAP GUI session handling, Excel helpers |
 
 ---
 
@@ -74,7 +73,6 @@ Under `CASRA_KPI_OUTPUT/`:
 | `HazMat_KPI/` | `CASRA_HAZMAT_KPI_<run date>.xlsx` (HAZ parts, MM03 Sales-Text results, skipped parts, summary) |
 | `KPI_Metrics/` | `CASRA_KPI_METRICS_<date_from>_<date_to>.xlsx` |
 | `KPI_Master/` | `CASRA_KPI_METRICS_MASTER.xlsx` |
-| `KPI_Metrics_Manual/` | `CASRA_KPI_METRICS_MANUAL_<today>.xlsx` (manual script only) |
 
 `<date_from>` and `<date_to>` = period start and end from your run.
 
@@ -97,30 +95,20 @@ CASRA-KPI-AUTOMATION/
     ├── SNP_Final/
     ├── HazMat_KPI/
     ├── KPI_Metrics/
-    ├── KPI_Master/
-    └── KPI_Metrics_Manual/
+    └── KPI_Master/
 ```
 
-`config.txt` in `src/` — SAP credentials (`username`, `password`, `asset_num`).
+`config.txt` in `src/` — SAP credentials and the ZMNM scope filter (`username`, `password`, `zmnm_created_by`). It is **gitignored**: copy `config.example.txt` to `config.txt` and fill it in on each machine that runs the pipeline.
+
+`zmnm_created_by` is the comma-separated list of SAP user IDs the ZMNM extract filters on. Changing it changes which parts are extracted, and therefore every KPI number.
 
 ---
 
-## Power BI (SharePoint sync)
+## Power BI
 
-After each run, two files are copied to your SharePoint-synced folder:
+The pipeline writes **only to the local `CASRA_KPI_OUTPUT/` folders**. It does not copy anything into SharePoint.
 
-| Subfolder | File |
-|-----------|------|
-| `SNP_Final/` | `CASRA_KPI_OUTPUT_<date_from>_<date_to>_FINAL.xlsx` (updated after HazMat pass) |
-| `KPI_Master/` | `CASRA_KPI_METRICS_MASTER.xlsx` |
-
-Update the root path in `src/casra_common.py`:
-
-```python
-SHAREPOINT_SYNC_ROOT = Path(r"C:\Users\B1020000\Bombardier\SharePoint-Sync\CASRA_KPI_PowerBI")
-```
-
-Create `SNP_Final` and `KPI_Master` inside that folder once, then connect Power BI there.
+Automatic SharePoint mirroring was removed: it was rewriting the two workbooks Power BI reads, and the date columns were not always written back with the same type, which broke the overnight dashboard refreshes. Publish `SNP_Final/` and `KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx` by hand when you want the dashboards to pick up a new run.
 
 ---
 
@@ -135,16 +123,28 @@ python generate_hazmat_kpi.py --date-from 20260501 --date-to 20260531
 python generate_kpi_metrics.py --date-from 20260501 --date-to 20260531
 ```
 
-Optional, at the top of `generate_hazmat_kpi.py` (leave blank/empty for the normal pipeline path):
-- `ZMNM_FILE` — point at a specific ZMNM workbook when debugging.
-- `MATERIALS_OVERRIDE` — a fixed list of part numbers to validate in MM03 instead of the HAZ parts read from ZMNM (handy for testing the SAP path).
+### HazMat modes
 
-The HazMat step drives **MM03** through SAP GUI scripting, so it needs an SAP logon (`config.txt` credentials, same `PR2` / client `320` as the extracts) and SAP GUI scripting enabled.
+`HAZMAT_MODE` at the top of `generate_hazmat_kpi.py`:
 
-**Manual metrics only** (does not update KPI Master; Hazmat % = 0 unless you run the HazMat step separately):
+- `"skip"` (default) — MM03 is never opened. Every HAZ part is treated as correctly
+  flagged, so **Hazmat % is always 0.00%** and HazMat errors have to be checked by hand
+  in MM03 and patched into `CASRA_KPI_METRICS_MASTER.xlsx`. `Run_KPI.py` prints a reminder
+  when this mode is on.
+- `"live"` — validates each HAZ part in MM03 (Sales Text across sales orgs 3000 / 4200 /
+  1000, plant 3099, distribution channel 00). **Not working yet**: the recorded navigation
+  blocks part-way through a run. The MM03 helpers and the remaining steps are at the bottom
+  of `generate_hazmat_kpi.py`.
 
-```powershell
-python kpi-metrics-manual.py
-```
+`ZMNM_FILE` at the top of the same file points the step at a specific ZMNM workbook when
+debugging; leave it blank for a normal pipeline run.
 
-Fill in `ZMNM_FILE`, `ZMMR_FILE`, and `DATA_QUALITY_FILE` at the top of `kpi-metrics-manual.py` before running.
+Live mode drives **MM03** through SAP GUI scripting, so it needs an SAP logon (`config.txt`
+credentials, same `PR2` / client `320` as the extracts) and SAP GUI scripting enabled.
+
+### Data Quality reminder
+
+`Run_KPI.py` asks you to confirm the Data Quality workbook before the first step runs. It
+shows the expected path and when the file was last modified, and warns if it predates the
+period you selected. The filename lives at the top of `apply_snp_exceptions.py`
+(`DATAQUALITY_FILE`) and has to be updated when you download a new month.

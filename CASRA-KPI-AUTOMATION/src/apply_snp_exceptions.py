@@ -8,13 +8,11 @@ from casra_common import (
     DQ_DATE_COLUMNS,
     DQ_PART_COLUMNS,
     LOOKUP_DIR,
-    SHAREPOINT_SNP_FINAL_DIR,
     add_report_date_column,
     coerce_check_columns,
     ensure_output_dirs,
     find_col,
     intermediate_output,
-    mirror_to_sharepoint,
     parse_date_range,
     read_data_quality_file,
     read_excel_table,
@@ -177,10 +175,8 @@ def main() -> None:
     if not run_summary.empty:
         for col in run_summary.columns:
             print(f"  {col}: {run_summary.iloc[0][col]}")
-    sharepoint_copy = mirror_to_sharepoint(output_file, SHAREPOINT_SNP_FINAL_DIR)
 
     print(f"\nOutput created: {output_file}")
-    print(f"Power BI copy:    {sharepoint_copy}")
 
 
 if __name__ == "__main__":
