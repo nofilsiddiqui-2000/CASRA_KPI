@@ -2,3 +2,6 @@ __pycache__/
 *.py[cod]
 .venv/
 .env
+
+# Local credentials / run settings (see src/config.example.txt)
+config.txt
