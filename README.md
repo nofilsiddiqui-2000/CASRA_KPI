@@ -104,6 +104,16 @@ CASRA-KPI-AUTOMATION/
 
 ---
 
+### Master metrics file
+
+`KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx` is **appended to**, not rewritten. A run adds one row and touches nothing else, so hand-made changes stay put: corrected numbers, HazMat errors patched in after checking MM03, notes, extra columns, extra sheets and formatting all survive.
+
+The new row is laid out to match the header already in the sheet, so a column you added or moved stays where you put it. If a metric has no column in the sheet, the run says so rather than dropping the value quietly.
+
+One caveat: the row goes in below the last row Excel considers used. If stray formatting far down the sheet has inflated that, you will get a gap - delete the empty rows and the next run lands in the right place.
+
+---
+
 ## Power BI
 
 The pipeline writes **only to the local `CASRA_KPI_OUTPUT/` folders**. It does not copy anything into SharePoint.
