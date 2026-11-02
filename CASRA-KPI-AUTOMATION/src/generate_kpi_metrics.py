@@ -4,7 +4,7 @@ Reads SNP_Final/CASRA_KPI_OUTPUT_<date_from>_<date_to>_FINAL.xlsx, writes per-ru
 and appends to KPI_Master/CASRA_KPI_METRICS_MASTER.xlsx.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -170,13 +170,39 @@ def append_to_master(master_path, new_row: dict) -> int:
         value = row[header]
         cell = sheet.cell(row=target_row, column=index)
         cell.value = None if pd.isna(value) else value
-        # keep whatever formatting the column above already uses
-        above = sheet.cell(row=target_row - 1, column=index)
-        if above.number_format:
-            cell.number_format = above.number_format
+        if copy_number_format(cell, sheet, target_row, index):
+            cell.number_format = sheet.cell(row=target_row - 1, column=index).number_format
 
     workbook.save(master_path)
     return target_row - 1
+
+
+def copy_number_format(cell, sheet, target_row: int, index: int) -> bool:
+    """Should the new cell inherit the number format of the cell above it?
+
+    Inheriting is what keeps a column the operator has formatted themselves -
+    a percentage column, a particular date style - looking the same after a
+    run. Two cases where it must not happen:
+
+      * The row above is the header. Its format is 'General', and forcing that
+        onto Report Date / Date From / Date To writes the date as a bare serial
+        number (46266 instead of 2026-09-01). Power BI then reads a number
+        where it expects a date and the refresh fails.
+
+      * The row above is a data row whose cell was never formatted as a date
+        ('General'), which happens when an earlier row holds the date as text.
+        Same serial-number result.
+
+    In both cases openpyxl has already given the cell a proper date format from
+    the value itself, so the right move is to leave that alone.
+    """
+    if target_row - 1 < 2:
+        return False
+    above_format = sheet.cell(row=target_row - 1, column=index).number_format
+    if not above_format:
+        return False
+    is_date = isinstance(cell.value, (datetime, date))
+    return not (is_date and above_format == "General")
 
 
 def print_metrics(metrics: dict) -> None:

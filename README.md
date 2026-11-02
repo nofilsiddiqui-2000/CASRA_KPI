@@ -112,6 +112,12 @@ CASRA-KPI-AUTOMATION/
 
 The new row is laid out to match the header already in the sheet, so a column you added or moved stays where you put it. If a metric has no column in the sheet, the run says so rather than dropping the value quietly.
 
+The new row also picks up the number format of the cell above it, so a column you
+formatted yourself (a percentage, a thousands separator) keeps looking the same.
+The three date columns are the exception: they are always written as real dates,
+never inheriting an unformatted cell above them, because a date written as a serial
+number is what broke the Power BI refreshes.
+
 One caveat: the row goes in below the last row Excel considers used. If stray formatting far down the sheet has inflated that, you will get a gap - delete the empty rows and the next run lands in the right place.
 
 ---
