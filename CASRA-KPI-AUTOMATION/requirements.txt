@@ -1,0 +1,7 @@
+# requirements.txt
+requests
+psutil
+pywin32; sys_platform == "win32"   # provides win32com.client 
+# SharePointAPI         this API needs to be installed separately as it is not available
+# AzureAPI
+pandas
