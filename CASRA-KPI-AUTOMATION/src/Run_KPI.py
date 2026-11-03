@@ -20,7 +20,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from apply_snp_exceptions import DATAQUALITY_FILE
+from apply_snp_exceptions import find_data_quality_file
 from casra_common import DATE_FORMAT, previous_month_range
 from generate_hazmat_kpi import HAZMAT_MODE
 
@@ -73,37 +73,38 @@ def select_mode() -> tuple[str, str]:
         print("  Invalid selection. Enter 1 or 2.")
 
 
-def confirm_data_quality_file(date_to: str) -> None:
-    """Make the operator confirm the Data Quality download before anything runs.
+def remind_data_quality_file() -> None:
+    """Remind the operator to refresh the Data Quality download before the run.
 
-    apply_snp_exceptions.py reads this workbook to clear Check_SNP errors that
-    have already been accepted. It is downloaded by hand each month, so a stale
-    file quietly means last month's exceptions get applied to this month's run.
+    It is a monthly manual download, so it is easy to start a run on last
+    month's file. This only names the workbook that is actually sitting in
+    LookUp Tables and waits for a yes - it does not try to work out whether
+    that file is the right one.
+
+    If there is no Data Quality workbook at all, stop here rather than four
+    steps later: apply_snp_exceptions cannot run without it, and by then the
+    two SAP extracts have already been through.
     """
     print("\nData Quality file")
     print("-" * 40)
-    print(f"  Expected: {DATAQUALITY_FILE}")
 
-    if DATAQUALITY_FILE.exists():
-        modified = datetime.fromtimestamp(DATAQUALITY_FILE.stat().st_mtime)
-        print(f"  Found, last modified {modified:%Y-%m-%d %H:%M}")
-        if modified.date() < datetime.strptime(date_to, DATE_FORMAT).date():
-            print("  WARNING: it is older than the end of the period you just selected.")
-    else:
-        print("  NOT FOUND.")
-        print("  Download this month's Data Quality export into 'LookUp Tables',")
-        print("  then update DATAQUALITY_FILE at the top of apply_snp_exceptions.py")
-        print("  so the filename matches.")
+    try:
+        dq_file = find_data_quality_file()
+    except FileNotFoundError as exc:
+        raise SystemExit(f"\n{exc}")
 
-    print("\n  SNP exceptions come from this file. A stale or missing download")
-    print("  means the SNP exceptions for this period will not be applied.")
+    print("  Reminder: the SNP exceptions come from this file.")
+    print(f"  In LookUp Tables: {dq_file.name}")
 
     while True:
-        answer = input("\n  Is the Data Quality file up to date for this run? [y/n]: ").strip().lower()
+        answer = input("\n  Is that this month's download? [y/n]: ").strip().lower()
         if answer in ("y", "yes"):
             return
         if answer in ("n", "no"):
-            raise SystemExit("\nStopped. Refresh the Data Quality file, then run again.")
+            raise SystemExit(
+                "\nStopped. Put this month's Data Quality file in 'LookUp Tables', "
+                "then run again."
+            )
         print("  Enter y or n.")
 
 
@@ -130,7 +131,7 @@ def run_script(script_name: str, date_from: str, date_to: str) -> None:
 
 def main() -> None:
     date_from, date_to = select_mode()
-    confirm_data_quality_file(date_to)
+    remind_data_quality_file()
 
     if HAZMAT_MODE == "skip":
         print("\nNote: HazMat is running in skip mode, so Hazmat % will be 0.00%.")

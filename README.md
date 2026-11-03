@@ -56,22 +56,29 @@ to `20260531`). `2` asks for the two dates as **YYYYMMDD**:
 The same range is passed to every step, so the extracts, the KPI build and the
 SNP exceptions all cover the same period.
 
-### 2. Confirm the Data Quality file
+### 2. The Data Quality reminder
 
 ```
 Data Quality file
 ----------------------------------------
-  Expected: ...\LookUp Tables\Data Quality-Sept.xlsx
-  Found, last modified 2026-09-30 14:22
+  Reminder: the SNP exceptions come from this file.
+  In LookUp Tables: Data Quality-Oct.xlsx
 
-  Is the Data Quality file up to date for this run? [y/n]:
+  Is that this month's download? [y/n]:
 ```
 
-Answer `n` and the run stops before anything is written. Answer `y` and it
-continues. This is the monthly download the SNP exceptions come from - a stale
-file silently applies last month's exceptions to this month's numbers, which is
-why it asks. If you downloaded a new month, rename `DATAQUALITY_FILE` at the top
-of `apply_snp_exceptions.py` to match.
+It names the Data Quality workbook that is in `LookUp Tables` and waits. `y`
+carries on, `n` stops before anything runs. That is all it does - it does not
+try to work out whether the file is the right one, because only you know that.
+
+**Nothing has to be renamed in the code when you download a new month.** Drop
+the file into `LookUp Tables` and it is picked up: any name matching
+`*Data Quality*.xlsx` counts, so `Data Quality-Oct.xlsx` works as it comes.
+If you leave the old months in the folder the newest file is used and the run
+prints which ones it passed over.
+
+If the folder has no Data Quality workbook at all, the run stops right here
+rather than after the two SAP extracts.
 
 ### 3. HazMat is skipped
 
@@ -205,9 +212,12 @@ debugging; leave it blank for a normal pipeline run.
 Live mode drives **MM03** through SAP GUI scripting, so it needs an SAP logon (`config.txt`
 credentials, same `PR2` / client `320` as the extracts) and SAP GUI scripting enabled.
 
-### Data Quality reminder
+### Data Quality file
 
-`Run_KPI.py` asks you to confirm the Data Quality workbook before the first step runs. It
-shows the expected path and when the file was last modified, and warns if it predates the
-period you selected. The filename lives at the top of `apply_snp_exceptions.py`
-(`DATAQUALITY_FILE`) and has to be updated when you download a new month.
+Downloaded by hand each month into `LookUp Tables`. It is found by pattern
+(`DATAQUALITY_PATTERN` in `apply_snp_exceptions.py`, `*Data Quality*.xlsx`), not by a
+filename written into the source, so a new month needs no code change. With more than one
+match the newest file wins and the step prints the full list.
+
+`Run_KPI.py` names the file it found and asks you to confirm before the first step runs,
+and stops early if there is none.

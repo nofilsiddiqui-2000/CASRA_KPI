@@ -21,8 +21,37 @@ from casra_common import (
     validate_file,
 )
 
-# Downloaded manually each month into LookUp Tables — update filename when it changes.
-DATAQUALITY_FILE = LOOKUP_DIR / "Data Quality-Sept.xlsx"
+# The Data Quality export is downloaded by hand each month and its filename
+# carries the month, so it is matched by pattern instead of being named here.
+# Drop the new download into 'LookUp Tables' and the pipeline picks it up -
+# there is no filename in the source to keep in step with it.
+DATAQUALITY_PATTERN = "*Data Quality*.xlsx"
+
+
+def data_quality_candidates(lookup_dir: Path = LOOKUP_DIR) -> list[Path]:
+    """Data Quality workbooks sitting in LookUp Tables, newest first.
+
+    Excel's lock files (~$name.xlsx) appear next to an open workbook and are
+    not readable, so they are left out.
+    """
+    matches = [
+        path for path in lookup_dir.glob(DATAQUALITY_PATTERN)
+        if not path.name.startswith("~$")
+    ]
+    return sorted(matches, key=lambda path: path.stat().st_mtime, reverse=True)
+
+
+def find_data_quality_file(lookup_dir: Path = LOOKUP_DIR) -> Path:
+    """The Data Quality workbook to use, or a readable error saying there is none."""
+    matches = data_quality_candidates(lookup_dir)
+    if not matches:
+        raise FileNotFoundError(
+            f"No Data Quality workbook in {lookup_dir}\n"
+            f"Download this month's export into that folder. Any filename "
+            f"matching '{DATAQUALITY_PATTERN}' is picked up, so the month in "
+            f"the name does not matter."
+        )
+    return matches[0]
 
 
 def clean_part(value) -> str:
@@ -157,8 +186,15 @@ def main() -> None:
     access_df = read_excel_table(access_file)
     run_summary = read_run_summary(access_file)
 
+    candidates = data_quality_candidates()
+    dq_file = find_data_quality_file()
+    if len(candidates) > 1:
+        print(f"  {len(candidates)} Data Quality workbooks in LookUp Tables; using the newest:")
+        for path in candidates:
+            print(f"    {'-->' if path == dq_file else '   '} {path.name}")
+
     final_df, run_summary, snp_audit, matched_dq_rows, remaining_snp_errors, dq_keys_df = run_snp_pass(
-        access_df, run_summary, DATAQUALITY_FILE
+        access_df, run_summary, dq_file
     )
 
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
@@ -170,7 +206,7 @@ def main() -> None:
         dq_keys_df.to_excel(writer, sheet_name="DQ Exception Keys", index=False)
 
     print(f"Input file: {access_file}")
-    print(f"Data Quality file: {DATAQUALITY_FILE}")
+    print(f"Data Quality file: {dq_file}")
     print("\nRun Summary:")
     if not run_summary.empty:
         for col in run_summary.columns:
